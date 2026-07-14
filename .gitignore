@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Eve build output
+.eve/
+.vercel/
+.output/
+.workflow-data/
+dist/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# SQLite
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Playwright persistent profile (contains session cookies — never commit)
+.browser-profile/
+browser-profile/
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
