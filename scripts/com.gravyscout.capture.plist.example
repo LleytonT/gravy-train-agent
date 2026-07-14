@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Phase 5: local Mac capture via launchd.
+  1. Copy to ~/Library/LaunchAgents/com.gravyscout.capture.plist
+  2. Edit paths + env (CAPTURE_SYNC_URL / TOKEN, profile dir)
+  3. launchctl load ~/Library/LaunchAgents/com.gravyscout.capture.plist
+
+  Runs daily at 22:30 Australia/Sydney-ish wall clock depends on Mac timezone.
+  Capture should finish before the 23:00 AEST agent scout cron.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.gravyscout.capture</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /PATH/TO/gravy-scout &amp;&amp; /usr/local/bin/pnpm capture &gt;&gt; ./data/capture.log 2&gt;&amp;1</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>22</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CAPTURE_SYNC_URL</key>
+    <string>https://YOUR_DEPLOYMENT/eve/v1/capture-sync/items</string>
+    <key>CAPTURE_SYNC_TOKEN</key>
+    <string>replace-me</string>
+    <key>CAPTURE_PROFILE_DIR</key>
+    <string>/PATH/TO/gravy-scout/.browser-profile</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
