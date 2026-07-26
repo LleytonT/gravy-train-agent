@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"],
+    "resolveJsonModule": true
+  },
+  "include": [
+    "agent/lib/**/*.ts",
+    "agent/tools/**/*.ts",
+    "agent/channels/**/*.ts",
+    "agent/schedules/**/*.ts",
+    "agent/agent.ts",
+    "capture/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".eve", "dist", ".next", "app", "components"]
+}

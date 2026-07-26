@@ -3,11 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
-    "dev": "eve dev",
+    "dev": "next dev",
+    "dev:tui": "eve dev",
     "dev:no-ui": "eve dev --no-ui",
-    "build": "eve build",
-    "start": "eve start",
+    "build": "next build",
+    "build:eve": "eve build",
+    "start": "next start",
+    "start:eve": "eve start",
     "info": "eve info",
     "seed": "tsx scripts/seed.ts",
     "db:ensure": "tsx -e \"import { ensureSchema } from './agent/lib/db/client.ts'; await ensureSchema(); console.log('ok')\"",
@@ -15,27 +19,71 @@
     "capture:dry": "tsx capture/run-capture.ts --dry-run",
     "capture:x": "tsx capture/run-capture.ts --source=x",
     "capture:linkedin": "tsx capture/run-capture.ts --source=linkedin",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.agent.json",
     "test:scoring": "tsx scripts/smoke-scoring.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
     "@vercel/connect": "0.2.2",
-    "ai": "^7.0.0",
+    "ai": "^7.0.37",
     "drizzle-orm": "^0.45.2",
-    "eve": "^0.23.0",
+    "eve": "^0.27.6",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "zod": "4.4.3"
   },
   "engines": {
     "node": "24.x"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "just-bash": "^3.1.0",
     "playwright": "^1.61.1",
+    "postcss": "^8.5.23",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.23.1",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "minimumReleaseAgeExclude": [
+      "@ai-sdk/*",
+      "@rolldown/*",
+      "@vercel/*",
+      "@workflow/*",
+      "ai",
+      "experimental-ai-sdk-code-mode",
+      "eve",
+      "nitro",
+      "rolldown",
+      "workflow"
+    ],
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@libsql/client"
+    ],
+    "ignoredBuiltDependencies": [
+      "@mongodb-js/zstd",
+      "node-liblzma"
+    ],
+    "allowBuilds": {
+      "esbuild": true,
+      "sharp": false,
+      "just-bash": true,
+      "@mongodb-js/zstd": false,
+      "node-liblzma": false
+    },
+    "packageExtensions": {
+      "eve@>=0.6.0-beta.13 <=0.7.0": {
+        "dependencies": {
+          "oxc-parser": "0.134.0"
+        }
+      }
+    }
   }
 }

@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink: #14201c;
+  --color-ink-soft: #2a3a34;
+  --color-mist: #eef4f0;
+  --color-fog: #d7e4dc;
+  --color-paper: #f7faf8;
+  --color-signal: #0f8f5f;
+  --color-signal-deep: #0b6b47;
+  --color-warn: #c47a12;
+  --color-line: color-mix(in oklab, var(--color-ink) 12%, transparent);
+  --color-line-strong: color-mix(in oklab, var(--color-ink) 22%, transparent);
+
+  --ease-presence: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    background:
+      radial-gradient(1200px 700px at 12% -10%, #cfe8d8 0%, transparent 55%),
+      radial-gradient(900px 600px at 100% 0%, #d9ebe3 0%, transparent 50%),
+      linear-gradient(180deg, #f4f8f5 0%, var(--color-paper) 45%, #eef3f0 100%);
+    background-attachment: fixed;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-signal) 28%, white);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-rise {
+    animation: rise 560ms var(--ease-presence) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 420ms var(--ease-presence) both;
+  }
+
+  .animate-pulse-dot {
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

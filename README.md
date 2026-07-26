@@ -9,6 +9,7 @@ Every night it classifies what you missed on LinkedIn/X, maintains company dossi
 | Layer | Choice |
 | --- | --- |
 | Agent | Eve (`agent/` filesystem layout) |
+| Web UI | Next.js + `useEveAgent` (same-origin `/eve/v1/*` via `withEve`) |
 | Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
 | DB | SQLite via Drizzle + libSQL (Turso-ready `DATABASE_URL`) |
 | Capture | Playwright, your logged-in browser profile (read-only) |
@@ -23,14 +24,20 @@ cp .env.example .env
 
 pnpm install
 pnpm seed          # fake Modal/Fireworks/Cursor/ElevenLabs dossiers
-pnpm dev           # Eve TUI — ask "why is Fireworks interesting?" / "score Modal"
+pnpm dev           # Next.js chat UI + Eve agent (http://localhost:3000)
+pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Without `AI_GATEWAY_API_KEY`, chat still works against seed dossiers; classification batches no-op until the key is set.
+Open the web app and ask things like “why is Fireworks interesting?” or “score Modal”. Without `AI_GATEWAY_API_KEY`, chat still works against seed dossiers; classification batches no-op until the key is set.
+
+The chat UI follows common Mobbin patterns from Claude / ChatGPT / Perplexity: session sidebar, branded empty state with starter prompts, sticky composer, streaming status, and inline tool-activity disclosure.
 
 ## Project layout (Eve conventions)
 
 ```
+app/                       # Next.js App Router chat UI
+components/chat/           # sidebar, empty state, composer, message parts
+next.config.ts             # withEve() mounts agent routes same-origin
 agent/
   agent.ts                 # Sonnet-class model via AI Gateway
   instructions.md          # persona + ping rules
@@ -102,10 +109,11 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Eve HMR + TUI |
+| `pnpm dev` | Next.js chat UI + Eve agent (HMR) |
+| `pnpm dev:tui` | Eve HMR + terminal UI |
 | `pnpm seed` | Seed fake dossiers + raw items |
 | `pnpm capture` / `capture:dry` | Playwright feed capture |
-| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm typecheck` | `tsc --noEmit` (web + agent) |
 | `pnpm test:scoring` | Smoke test scoring math |
 | `pnpm exec tsx scripts/verify-dossier.ts` | Confirm seed dossiers |
 

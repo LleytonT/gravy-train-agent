@@ -1,24 +1,54 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2022"
+    ],
+    "allowJs": false,
     "skipLibCheck": true,
+    "strict": true,
     "noEmit": true,
-    "rootDir": ".",
-    "types": ["node"],
-    "resolveJsonModule": true
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "types": [
+      "node"
+    ]
   },
   "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
     "agent/lib/**/*.ts",
     "agent/tools/**/*.ts",
     "agent/channels/**/*.ts",
     "agent/schedules/**/*.ts",
     "agent/agent.ts",
     "capture/**/*.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".eve", "dist"]
+  "exclude": [
+    "node_modules",
+    ".eve",
+    "dist",
+    ".next"
+  ]
 }

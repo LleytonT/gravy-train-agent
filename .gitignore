@@ -2,8 +2,9 @@
 node_modules/
 .pnpm-store/
 
-# Eve build output
+# Eve / Next build output
 .eve/
+.next/
 .vercel/
 .output/
 .workflow-data/
