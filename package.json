@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
     "dev": "next dev",
     "dev:tui": "eve dev",
@@ -48,5 +49,41 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "minimumReleaseAgeExclude": [
+      "@ai-sdk/*",
+      "@rolldown/*",
+      "@vercel/*",
+      "@workflow/*",
+      "ai",
+      "experimental-ai-sdk-code-mode",
+      "eve",
+      "nitro",
+      "rolldown",
+      "workflow"
+    ],
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@libsql/client"
+    ],
+    "ignoredBuiltDependencies": [
+      "@mongodb-js/zstd",
+      "node-liblzma"
+    ],
+    "allowBuilds": {
+      "esbuild": true,
+      "sharp": false,
+      "just-bash": true,
+      "@mongodb-js/zstd": false,
+      "node-liblzma": false
+    },
+    "packageExtensions": {
+      "eve@>=0.6.0-beta.13 <=0.7.0": {
+        "dependencies": {
+          "oxc-parser": "0.134.0"
+        }
+      }
+    }
   }
 }
