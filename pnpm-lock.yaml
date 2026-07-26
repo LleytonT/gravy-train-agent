@@ -15,16 +15,16 @@ importers:
         version: 0.17.4
       '@vercel/connect':
         specifier: 0.2.2
-        version: 0.2.2(ai@7.0.26(zod@4.4.3))(eve@0.23.0(@libsql/client@0.17.4)(ai@7.0.26(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0))
+        version: 0.2.2(ai@7.0.37(zod@4.4.3))(eve@0.27.6(@libsql/client@0.17.4)(ai@7.0.37(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0))
       ai:
-        specifier: ^7.0.0
-        version: 7.0.26(zod@4.4.3)
+        specifier: ^7.0.37
+        version: 7.0.37(zod@4.4.3)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1)
       eve:
-        specifier: ^0.23.0
-        version: 0.23.0(@libsql/client@0.17.4)(ai@7.0.26(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0)
+        specifier: ^0.27.6
+        version: 0.27.6(@libsql/client@0.17.4)(ai@7.0.37(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0)
       next:
         specifier: ^16.2.12
         version: 16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -77,14 +77,14 @@ importers:
 
 packages:
 
-  '@ai-sdk/gateway@4.0.19':
-    resolution: {integrity: sha512-pQ3UPO0tyLUuW751jdgWhvHmXmjvAFpyiTeZF6eSVHMYhH/dSH4FtSKGT2nOnvvpaRpU8ygsLV4ng2Mz0lcU/A==}
+  '@ai-sdk/gateway@4.0.28':
+    resolution: {integrity: sha512-ee9TsNO3mkgHDWmTmJ8Fvltr6PFh52zhrV2+FaKJY3F3iu7kWZi5tCRJCR1HVhhlpj6lHniUb28nLQdPHkA/1Q==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.9':
-    resolution: {integrity: sha512-BohlmQ62x+iIOawYCS2z5JzokMq5kZSoVhJawH41mlMdkb01xqhIMG8L0NAByneUFLpdUlSjJjF/bel5j3cGZA==}
+  '@ai-sdk/provider-utils@5.0.12':
+    resolution: {integrity: sha512-bbhlOgHeYwrIGheLkM6fhS8hVger8uFPmcOLg+kxc9EFh7y30XYorWhthlYAgpadO3SJhFZrIcEknN7qEqEVvA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1260,8 +1260,8 @@ packages:
   '@workflow/serde@4.1.0':
     resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
 
-  ai@7.0.26:
-    resolution: {integrity: sha512-gzLoOHoXFJNcxrzFyHClbZsDEA1z0LNm3Kwq8lEWIfL+8wEEir+eDJqJJbkEJdLxGrc0IuBkybxEDzkbvSavjw==}
+  ai@7.0.37:
+    resolution: {integrity: sha512-stF+SEQJgKY3Qfe3FwNzqUrehHviOp2l7LemoI8YMOa0Zk5PxKsRNgUk3cHXz0RAue9RRyCAis2fz6LSCP6EKw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1518,13 +1518,13 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  eve@0.23.0:
-    resolution: {integrity: sha512-KZHU7YfAxI2u4J/Wj2SaCzQ5l8VURzqd9zEsLlfhStBj41sXsSrf9HcV/K1Qpq0VX8x+C8qLUq8dSeEZVHwjFg==}
+  eve@0.27.6:
+    resolution: {integrity: sha512-t2Xr/nlVGc0+Fy9fav8p/CJrwMSQM0zyuOGY1F1XapN0UFssGYBGa6Ml/Q5OnowvWwsGH4m0Tf2QAccayVCvtw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
-      ai: ^7.0.0
+      ai: ^7.0.34
       braintrust: ^3.0.0
       just-bash: ^3.0.0
       microsandbox: ^0.5.0
@@ -2212,14 +2212,14 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/gateway@4.0.19(zod@4.4.3)':
+  '@ai-sdk/gateway@4.0.28(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.3
-      '@ai-sdk/provider-utils': 5.0.9(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.12(zod@4.4.3)
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/provider-utils@5.0.9(zod@4.4.3)':
+  '@ai-sdk/provider-utils@5.0.12(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.3
       '@standard-schema/spec': 1.1.0
@@ -2949,12 +2949,12 @@ snapshots:
     dependencies:
       execa: 5.1.1
 
-  '@vercel/connect@0.2.2(ai@7.0.26(zod@4.4.3))(eve@0.23.0(@libsql/client@0.17.4)(ai@7.0.26(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0))':
+  '@vercel/connect@0.2.2(ai@7.0.37(zod@4.4.3))(eve@0.27.6(@libsql/client@0.17.4)(ai@7.0.37(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0))':
     dependencies:
       '@vercel/oidc': 3.6.1
     optionalDependencies:
-      ai: 7.0.26(zod@4.4.3)
-      eve: 0.23.0(@libsql/client@0.17.4)(ai@7.0.26(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0)
+      ai: 7.0.37(zod@4.4.3)
+      eve: 0.27.6(@libsql/client@0.17.4)(ai@7.0.37(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0)
 
   '@vercel/oidc@3.2.0': {}
 
@@ -2966,11 +2966,11 @@ snapshots:
 
   '@workflow/serde@4.1.0': {}
 
-  ai@7.0.26(zod@4.4.3):
+  ai@7.0.37(zod@4.4.3):
     dependencies:
-      '@ai-sdk/gateway': 4.0.19(zod@4.4.3)
+      '@ai-sdk/gateway': 4.0.28(zod@4.4.3)
       '@ai-sdk/provider': 4.0.3
-      '@ai-sdk/provider-utils': 5.0.9(zod@4.4.3)
+      '@ai-sdk/provider-utils': 5.0.12(zod@4.4.3)
       zod: 4.4.3
 
   anynum@1.0.1: {}
@@ -3161,9 +3161,9 @@ snapshots:
       '@esbuild/win32-ia32': 0.28.1
       '@esbuild/win32-x64': 0.28.1
 
-  eve@0.23.0(@libsql/client@0.17.4)(ai@7.0.26(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0):
+  eve@0.27.6(@libsql/client@0.17.4)(ai@7.0.37(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)(just-bash@3.1.0):
     dependencies:
-      ai: 7.0.26(zod@4.4.3)
+      ai: 7.0.37(zod@4.4.3)
       nitro: 3.0.260610-beta(@libsql/client@0.17.4)(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(sql.js@1.14.1))(jiti@2.7.0)
     optionalDependencies:
       just-bash: 3.1.0
