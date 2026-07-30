@@ -9,8 +9,8 @@ export type ChatThread = {
 };
 
 export const SUGGESTIONS = [
-  "Why is Fireworks interesting?",
-  "Score Modal for me",
+  "What roles fit me as an SE at Vercel?",
+  "Who should I talk to at Decagon?",
+  "Score Fireworks for my profile",
   "What's on my watchlist?",
-  "Add Sierra to the watchlist",
 ] as const;

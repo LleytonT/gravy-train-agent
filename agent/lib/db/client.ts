@@ -84,6 +84,28 @@ export async function ensureSchema(): Promise<void> {
       source_url TEXT,
       created_at TEXT NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS open_roles (
+      id TEXT PRIMARY KEY NOT NULL,
+      company_id TEXT NOT NULL REFERENCES companies(id),
+      title TEXT NOT NULL,
+      location TEXT,
+      source_url TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS outreach_targets (
+      id TEXT PRIMARY KEY NOT NULL,
+      company_id TEXT NOT NULL REFERENCES companies(id),
+      name TEXT NOT NULL,
+      title TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      linkedin_url TEXT,
+      why_reach_out TEXT NOT NULL,
+      related_role_title TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS opportunities (
       id TEXT PRIMARY KEY NOT NULL,
       company_id TEXT NOT NULL REFERENCES companies(id),
@@ -108,5 +130,7 @@ export async function ensureSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_signals_observed_at ON signals(observed_at)`,
     `CREATE INDEX IF NOT EXISTS idx_opportunities_company_id ON opportunities(company_id)`,
     `CREATE INDEX IF NOT EXISTS idx_companies_watchlist_tier ON companies(watchlist_tier)`,
+    `CREATE INDEX IF NOT EXISTS idx_open_roles_company_id ON open_roles(company_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_outreach_targets_company_id ON outreach_targets(company_id)`,
   ]);
 }

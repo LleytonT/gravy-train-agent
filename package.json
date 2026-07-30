@@ -19,6 +19,8 @@
     "capture:dry": "tsx capture/run-capture.ts --dry-run",
     "capture:x": "tsx capture/run-capture.ts --source=x",
     "capture:linkedin": "tsx capture/run-capture.ts --source=linkedin",
+    "capture:profile": "tsx capture/run-profile-capture.ts",
+    "capture:profile:dry": "tsx capture/run-profile-capture.ts --dry-run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.agent.json",
     "test:scoring": "tsx scripts/smoke-scoring.ts"
   },

@@ -4,11 +4,14 @@ import { z } from "zod";
 import { ensureSchema } from "../lib/db/client.js";
 import { repo } from "../lib/db/repo.js";
 import { parsePreferences, readUserProfile } from "../lib/profile.js";
+import {
+  parseCareerIdentityFromProfile,
+} from "../lib/role-affinity.js";
 import { scoreCompany } from "../lib/scoring.js";
 
 export default defineTool({
   description:
-    "Recompute the Gravy Train Index for a company from its stored signals (deterministic + preference-aware).",
+    "Recompute the Gravy Train Index for a company from its stored signals (deterministic + preference-aware, personalized to the user's LinkedIn role/geography).",
   inputSchema: z.object({
     company: z.string().min(1),
   }),
@@ -21,11 +24,14 @@ export default defineTool({
 
     const profile = readUserProfile();
     const prefs = parsePreferences(profile);
+    const identity = parseCareerIdentityFromProfile(profile);
     const result = scoreCompany(dossier.signals, {
       ...prefs,
       watchlistTier: dossier.company.watchlistTier,
       companyCategory: dossier.company.category,
       companyName: dossier.company.name,
+      roleFamily: identity.roleFamily,
+      geographyHints: identity.geographyHints,
     });
 
     return {
@@ -34,6 +40,12 @@ export default defineTool({
         id: dossier.company.id,
         name: dossier.company.name,
         tier: dossier.company.watchlistTier,
+      },
+      identity: {
+        roleFamily: identity.roleFamily,
+        currentTitle: identity.currentTitle,
+        currentCompany: identity.currentCompany,
+        location: identity.location,
       },
       ...result,
     };

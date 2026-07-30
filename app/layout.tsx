@@ -25,7 +25,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Gravy Scout",
   description:
-    "Personal GTM opportunity agent for APAC tech sales — chat with dossiers, scores, and watchlist memory.",
+    "Personal GTM opportunity agent for APAC tech sales — LinkedIn role matching, gravy-train seats, and who to reach out to.",
 };
 
 export default function RootLayout({
