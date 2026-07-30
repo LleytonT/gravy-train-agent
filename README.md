@@ -32,6 +32,8 @@ Open the web app and ask things like “why is Fireworks interesting?” or “s
 
 The chat UI follows common Mobbin patterns from Claude / ChatGPT / Perplexity: session sidebar, branded empty state with starter prompts, sticky composer, streaming status, and inline tool-activity disclosure.
 
+Browser chat is currently open (`none()` in `agent/channels/eve.ts`) so anyone with the URL can talk to the agent. Replace that with Clerk / Auth.js / a custom `AuthFn` before sharing sensitive data.
+
 ## Project layout (Eve conventions)
 
 ```
