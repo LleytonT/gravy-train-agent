@@ -89,6 +89,19 @@
   .animate-step-in {
     animation: step-in 700ms var(--ease-presence) both;
   }
+
+  .animate-progress-shine {
+    animation: progress-shine 1.8s linear infinite;
+  }
+}
+
+@keyframes progress-shine {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes rise {

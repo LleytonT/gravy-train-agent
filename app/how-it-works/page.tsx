@@ -118,7 +118,9 @@ export default function HowItWorksPage() {
             </h2>
             <p className="mt-3 max-w-2xl text-base leading-7 text-ink-muted">
               Capture runs on your Mac. The agent consumes DB rows, never posts
-              or likes.
+              or likes. The run below replays like a task progress flow: bar
+              fills, steps flip queued to running to done, then a score gate
+              splits ping vs quiet.
             </p>
             <div className="mt-10">
               <WorkflowDiagram />
