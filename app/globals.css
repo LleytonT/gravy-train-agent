@@ -5,16 +5,18 @@
   --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --color-ink: #14201c;
-  --color-ink-soft: #2a3a34;
-  --color-mist: #eef4f0;
-  --color-fog: #d7e4dc;
-  --color-paper: #f7faf8;
-  --color-signal: #0f8f5f;
-  --color-signal-deep: #0b6b47;
-  --color-warn: #c47a12;
-  --color-line: color-mix(in oklab, var(--color-ink) 12%, transparent);
-  --color-line-strong: color-mix(in oklab, var(--color-ink) 22%, transparent);
+  --color-ink: #0e1814;
+  --color-ink-muted: #3a4d44;
+  --color-paper: #f3f6f4;
+  --color-surface: #ffffff;
+  --color-mist: #e5eee8;
+  --color-fog: #c9d9cf;
+  --color-signal: #0c7a52;
+  --color-signal-deep: #085c3d;
+  --color-warn: #9a5a0a;
+  --color-warn-soft: #f7ebd7;
+  --color-line: #c5d2ca;
+  --color-line-strong: #9aada2;
 
   --ease-presence: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -30,18 +32,24 @@
     color: var(--color-ink);
     font-family: var(--font-body);
     background:
-      radial-gradient(1200px 700px at 12% -10%, #cfe8d8 0%, transparent 55%),
-      radial-gradient(900px 600px at 100% 0%, #d9ebe3 0%, transparent 50%),
-      linear-gradient(180deg, #f4f8f5 0%, var(--color-paper) 45%, #eef3f0 100%);
+      radial-gradient(1100px 640px at 8% -12%, #c5e0d0 0%, transparent 58%),
+      radial-gradient(900px 520px at 100% 0%, #d2e6db 0%, transparent 52%),
+      linear-gradient(180deg, #eef3f0 0%, var(--color-paper) 42%, #e8efe9 100%);
     background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
   }
 
   * {
     box-sizing: border-box;
   }
 
+  a {
+    color: inherit;
+  }
+
   ::selection {
-    background: color-mix(in oklab, var(--color-signal) 28%, white);
+    background: #b7dfc8;
+    color: var(--color-ink);
   }
 }
 
@@ -69,6 +77,18 @@
   .animate-pulse-dot {
     animation: pulse-dot 1.2s ease-in-out infinite;
   }
+
+  .animate-flow {
+    animation: flow 2.4s var(--ease-presence) infinite;
+  }
+
+  .animate-draw {
+    animation: draw 1.4s var(--ease-presence) both;
+  }
+
+  .animate-step-in {
+    animation: step-in 700ms var(--ease-presence) both;
+  }
 }
 
 @keyframes rise {
@@ -94,11 +114,42 @@
 @keyframes pulse-dot {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.4;
     transform: scale(0.9);
   }
   50% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes flow {
+  0% {
+    stroke-dashoffset: 48;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 240;
+    opacity: 0.2;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

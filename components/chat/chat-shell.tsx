@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HandleMessageStreamEvent, SessionState } from "eve/client";
 
+import { SiteHeader } from "@/components/site-header";
 import { ChatPanel } from "./chat-panel";
 import { ChatSidebar } from "./chat-sidebar";
 import {
@@ -103,42 +104,45 @@ export function ChatShell() {
 
   if (!hydrated || !activeThread) {
     return (
-      <div className="grid min-h-dvh place-items-center text-sm text-[var(--color-ink-soft)]">
-        Loading scout…
+      <div className="grid min-h-dvh place-items-center text-sm text-ink-muted">
+        Loading scout
       </div>
     );
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <ChatSidebar
-        threads={threads}
-        activeId={activeThread.id}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onNewChat={handleNewChat}
-        onSelect={handleSelect}
-      />
-
-      <main className="flex min-w-0 flex-1 flex-col">
-        <ChatPanel
-          key={activeThread.id}
-          threadId={activeThread.id}
-          initialEvents={activeThread.events ?? []}
-          initialSession={activeThread.session}
-          onPersist={handlePersist}
-          onTitleSeed={handleTitleSeed}
-          sidebarToggle={
-            <button
-              type="button"
-              className="rounded-lg border border-[var(--color-line)] bg-white/70 px-2.5 py-1.5 text-sm md:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              Chats
-            </button>
-          }
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <SiteHeader active="chat" />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <ChatSidebar
+          threads={threads}
+          activeId={activeThread.id}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onNewChat={handleNewChat}
+          onSelect={handleSelect}
         />
-      </main>
+
+        <main className="flex min-w-0 flex-1 flex-col">
+          <ChatPanel
+            key={activeThread.id}
+            threadId={activeThread.id}
+            initialEvents={activeThread.events ?? []}
+            initialSession={activeThread.session}
+            onPersist={handlePersist}
+            onTitleSeed={handleTitleSeed}
+            sidebarToggle={
+              <button
+                type="button"
+                className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink md:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                Chats
+              </button>
+            }
+          />
+        </main>
+      </div>
     </div>
   );
 }
