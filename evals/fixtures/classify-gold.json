@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "description": "Gold labels for CLASSIFY_MODEL evals. Expand this set before fine-tuning; each case is one feed item with expected signal types / companies.",
+  "cases": [
+    {
+      "id": "modal-exec-tour",
+      "item": {
+        "id": "eval-modal-sydney-1",
+        "source": "x",
+        "author": "Jane Founder",
+        "authorHeadline": "CEO @ Modal",
+        "excerpt": "Great week meeting customers in Sydney — APAC demand for GPU infra is real.",
+        "url": "https://x.com/example/status/eval-modal-sydney-1",
+        "postedAt": "2026-07-29T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": true,
+        "companiesAnyOf": ["Modal", "Modal Labs"],
+        "signalTypesAnyOf": ["exec_tour", "anz_expansion", "apac_office"],
+        "direction": "positive",
+        "minStrength": 3
+      }
+    },
+    {
+      "id": "fireworks-sydney-se",
+      "item": {
+        "id": "eval-fw-se-1",
+        "source": "linkedin",
+        "author": "Alex Recruiter",
+        "authorHeadline": "Talent @ Fireworks AI",
+        "excerpt": "We're hiring our first Sydney-based Solutions Engineer — Series B AI inference.",
+        "url": "https://linkedin.com/feed/update/eval-fw-se-1",
+        "postedAt": "2026-07-28T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": true,
+        "companiesAnyOf": ["Fireworks AI", "Fireworks"],
+        "signalTypesAnyOf": ["adjacent_se_csm", "first_apac_gtm_job", "expansion_signal", "series_b_plus"],
+        "direction": "positive",
+        "minStrength": 3
+      }
+    },
+    {
+      "id": "cursor-talent-flow",
+      "item": {
+        "id": "eval-cursor-talent-1",
+        "source": "x",
+        "author": "Sam Eng",
+        "authorHeadline": "ex-Vercel",
+        "excerpt": "Excited to join Cursor to help scale GTM across ANZ. Day one vibes.",
+        "url": "https://x.com/example/status/eval-cursor-talent-1",
+        "postedAt": "2026-07-27T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": true,
+        "companiesAnyOf": ["Cursor", "Anysphere"],
+        "signalTypesAnyOf": ["talent_flow_strong_org", "anz_expansion", "expansion_signal"],
+        "direction": "positive",
+        "minStrength": 3
+      }
+    },
+    {
+      "id": "elevenlabs-residency",
+      "item": {
+        "id": "eval-11labs-residency-1",
+        "source": "linkedin",
+        "author": "Priya Ops",
+        "authorHeadline": "Infra @ ElevenLabs",
+        "excerpt": "Exploring AU data residency options for enterprise voice workloads.",
+        "url": "https://linkedin.com/feed/update/eval-11labs-residency-1",
+        "postedAt": "2026-07-26T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": true,
+        "companiesAnyOf": ["ElevenLabs", "Eleven Labs"],
+        "signalTypesAnyOf": ["sydney_infra", "irap", "local_entity"],
+        "direction": "positive",
+        "minStrength": 2
+      }
+    },
+    {
+      "id": "noise-melbourne-coffee",
+      "item": {
+        "id": "eval-noise-1",
+        "source": "x",
+        "author": "Noise Account",
+        "authorHeadline": "Random",
+        "excerpt": "Coffee in Melbourne hits different",
+        "url": "https://x.com/example/status/eval-noise-1",
+        "postedAt": "2026-07-29T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": false,
+        "maxSignals": 0
+      }
+    },
+    {
+      "id": "apac-sales-vp-hire",
+      "item": {
+        "id": "eval-vp-apac-1",
+        "source": "linkedin",
+        "author": "Hiring Manager",
+        "authorHeadline": "People @ Datadog",
+        "excerpt": "Thrilled to welcome our new VP of Sales, APAC — based in Sydney and building the first ANZ enterprise team.",
+        "url": "https://linkedin.com/feed/update/eval-vp-apac-1",
+        "postedAt": "2026-07-25T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": true,
+        "companiesAnyOf": ["Datadog"],
+        "signalTypesAnyOf": ["apac_sales_leadership_hire", "regional_leadership_hire"],
+        "direction": "positive",
+        "minStrength": 4
+      }
+    },
+    {
+      "id": "negative-apac-retreat",
+      "item": {
+        "id": "eval-retreat-1",
+        "source": "x",
+        "author": "Industry Watch",
+        "authorHeadline": "Reporter",
+        "excerpt": "AcmeCloud is shutting its Sydney office and pulling out of APAC GTM after 18 months.",
+        "url": "https://x.com/example/status/eval-retreat-1",
+        "postedAt": "2026-07-24T00:00:00.000Z"
+      },
+      "expected": {
+        "mustExtract": true,
+        "companiesAnyOf": ["AcmeCloud", "Acme Cloud"],
+        "signalTypesAnyOf": ["apac_retreat", "layoffs", "leadership_departure"],
+        "direction": "negative",
+        "minStrength": 3
+      }
+    }
+  ]
+}

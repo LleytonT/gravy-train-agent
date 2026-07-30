@@ -10,7 +10,7 @@ Every night it classifies what you missed on LinkedIn/X, maintains company dossi
 | --- | --- |
 | Agent | Eve (`agent/` filesystem layout) |
 | Web UI | Next.js + `useEveAgent` (same-origin `/eve/v1/*` via `withEve`) |
-| Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
+| Models | AI Gateway — `AGENT_MODEL` (chat/synthesis) + `CLASSIFY_MODEL` (batch classify); swap or fine-tune via env |
 | DB | SQLite via Drizzle + libSQL (Turso-ready `DATABASE_URL`) |
 | Capture | Playwright, your logged-in browser profile (read-only) |
 | Messaging | Twilio WhatsApp (+ Eve HTTP/TUI for local) |
@@ -47,9 +47,10 @@ agent/
   tools/                   # snake_case Eve tools
   schedules/nightly_scout.ts
   channels/                # eve, twilio, capture_sync
-  lib/                     # db, classify, scoring, profile
+  lib/                     # db, classify, scoring, profile, models
   sandbox/workspace/memory/user-profile.md
 capture/                   # Playwright (runs on your Mac, not on Vercel)
+evals/                     # scoring / classify / digest / chat harness
 scripts/seed.ts
 ```
 
@@ -107,6 +108,28 @@ pnpm capture
 
 Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
+## Evals, multi-LLM choice, fine-tunes
+
+There is no Jest/Vitest — evals are `tsx` scripts under `evals/`.
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm eval` | Offline suites (scoring + digest + chat fixtures) |
+| `pnpm eval:scoring` / `pnpm test:scoring` | Gravy Train Index + preference parsing |
+| `pnpm eval:classify` | Gold-label classify accuracy (`AI_GATEWAY_API_KEY`) |
+| `pnpm eval:compare` | Sweep `CLASSIFY_MODELS` for model pick / fine-tune check |
+| `pnpm eval:export` | Write classify fine-tune JSONL to `data/evals/` |
+| `pnpm eval:digest` / `pnpm eval:chat` | Digest rubric / tool-use scenarios |
+
+**What you need to choose an LLM or ship a fine-tune:** a labeled classify gold set (`evals/fixtures/classify-gold.json`), deterministic scoring regressions, digest + chat rubrics, env-overridable `AGENT_MODEL` / `CLASSIFY_MODEL`, and a compare matrix. Keep scoring in code; fine-tune classification (optionally digest tone later). Full checklist: [`evals/README.md`](evals/README.md).
+
+```bash
+pnpm eval                                 # no API key
+CLASSIFY_MODEL=openai/gpt-5-mini pnpm eval:classify
+CLASSIFY_MODELS=anthropic/claude-haiku-4.5,openai/gpt-5-mini pnpm eval:compare
+pnpm eval:export                          # then train externally → set CLASSIFY_MODEL
+```
+
 ## Scripts
 
 | Command | Purpose |
@@ -116,7 +139,8 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm seed` | Seed fake dossiers + raw items |
 | `pnpm capture` / `capture:dry` | Playwright feed capture |
 | `pnpm typecheck` | `tsc --noEmit` (web + agent) |
-| `pnpm test:scoring` | Smoke test scoring math |
+| `pnpm eval` / `eval:*` | Agent eval harness (see above) |
+| `pnpm test:scoring` | Alias for `eval:scoring` |
 | `pnpm exec tsx scripts/verify-dossier.ts` | Confirm seed dossiers |
 
 ## Single-user note

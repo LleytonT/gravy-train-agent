@@ -20,7 +20,14 @@
     "capture:x": "tsx capture/run-capture.ts --source=x",
     "capture:linkedin": "tsx capture/run-capture.ts --source=linkedin",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.agent.json",
-    "test:scoring": "tsx scripts/smoke-scoring.ts"
+    "test:scoring": "tsx evals/run-scoring.ts",
+    "eval": "tsx evals/run-all.ts",
+    "eval:scoring": "tsx evals/run-scoring.ts",
+    "eval:digest": "tsx evals/run-digest.ts",
+    "eval:chat": "tsx evals/run-chat.ts",
+    "eval:classify": "tsx evals/run-classify.ts",
+    "eval:compare": "tsx evals/compare-models.ts",
+    "eval:export": "tsx evals/export-finetune.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

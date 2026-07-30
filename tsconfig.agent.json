@@ -18,7 +18,8 @@
     "agent/schedules/**/*.ts",
     "agent/agent.ts",
     "capture/**/*.ts",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "evals/**/*.ts"
   ],
   "exclude": ["node_modules", ".eve", "dist", ".next", "app", "components"]
 }
