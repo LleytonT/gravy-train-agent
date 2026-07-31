@@ -70,29 +70,29 @@ export function ChatPanel({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-[var(--color-line)]/80 px-4 py-3 md:px-6">
+      <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           {sidebarToggle}
           <div>
-            <p className="font-display text-sm font-semibold tracking-tight md:hidden">
+            <p className="font-display text-sm font-semibold tracking-tight text-ink md:hidden">
               Gravy Scout
             </p>
-            <p className="hidden font-mono text-[11px] tracking-[0.18em] text-[var(--color-ink-soft)]/70 uppercase md:block">
+            <p className="hidden font-mono text-[11px] tracking-[0.18em] text-ink-muted uppercase md:block">
               Session {threadId.slice(0, 8)}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {busy ? (
-            <span className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-white/60 px-2.5 py-1 font-mono text-[11px] tracking-wide text-[var(--color-ink-soft)] uppercase">
-              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-[var(--color-signal)]" />
+            <span className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-1 font-mono text-[11px] tracking-wide text-ink-muted uppercase">
+              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-signal" />
               Streaming
             </span>
           ) : null}
           <button
             type="button"
             onClick={() => agent.reset()}
-            className="rounded-lg border border-[var(--color-line)] bg-white/60 px-2.5 py-1.5 text-sm text-[var(--color-ink-soft)] transition hover:border-[var(--color-line-strong)] hover:text-[var(--color-ink)]"
+            className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-muted transition hover:border-line-strong hover:text-ink"
           >
             Reset
           </button>
@@ -113,7 +113,7 @@ export function ChatPanel({
 
       {agent.error ? (
         <div className="mx-auto w-full max-w-3xl px-4 pb-2 md:px-6">
-          <p className="rounded-xl border border-[color-mix(in_oklab,var(--color-warn)_40%,transparent)] bg-[color-mix(in_oklab,var(--color-warn)_10%,white)] px-3 py-2 text-sm text-[var(--color-warn)]">
+          <p className="rounded-xl border border-warn bg-warn-soft px-3 py-2 text-sm text-warn">
             {agent.error.message}
           </p>
         </div>

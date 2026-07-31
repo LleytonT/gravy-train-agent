@@ -41,9 +41,7 @@ pnpm capture:profile               # thereafter
 
 Or tell the agent your title/company/location in chat — it calls `ingest_linkedin_profile`.
 
-The chat UI follows common Mobbin patterns from Claude / ChatGPT / Perplexity: session sidebar, branded empty state with starter prompts, sticky composer, streaming status, and inline tool-activity disclosure.
-
-Browser chat is currently open (`none()` in `agent/channels/eve.ts`) so anyone with the URL can talk to the agent. Replace that with Clerk / Auth.js / a custom `AuthFn` before sharing sensitive data.
+Browse `/how-it-works` for the nightly workflow diagram. Browser chat is open via `none()` in `agent/channels/eve.ts`. Swap that for real auth before sharing sensitive data.
 
 ## Project layout (Eve conventions)
 
