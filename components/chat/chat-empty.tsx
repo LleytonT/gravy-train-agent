@@ -18,8 +18,8 @@ export function ChatEmpty({ onSuggestion, disabled }: ChatEmptyProps) {
           Gravy Scout
         </h1>
         <p className="mt-4 max-w-xl text-base leading-7 text-ink-muted text-balance">
-          Ask about dossiers, scores, and watchlist memory. Same agent as the
-          CLI.
+          Connect your LinkedIn role, get gravy-train seats that match, and the
+          right people to reach out to.
         </p>
       </div>
 

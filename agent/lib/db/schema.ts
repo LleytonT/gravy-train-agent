@@ -68,6 +68,46 @@ export const peopleWatchlist = sqliteTable("people_watchlist", {
   createdAt: text("created_at").notNull(),
 });
 
+export const openRoleStatuses = ["open", "rumored", "filled"] as const;
+export type OpenRoleStatus = (typeof openRoleStatuses)[number];
+
+export const outreachKinds = [
+  "hiring_manager",
+  "peer_in_seat",
+  "adjacent",
+] as const;
+export type OutreachKind = (typeof outreachKinds)[number];
+
+/** Known / rumored seats at gravy-train companies for role matching. */
+export const openRoles = sqliteTable("open_roles", {
+  id: text("id").primaryKey(),
+  companyId: text("company_id")
+    .notNull()
+    .references(() => companies.id),
+  title: text("title").notNull(),
+  location: text("location"),
+  sourceUrl: text("source_url"),
+  status: text("status", { enum: openRoleStatuses }).notNull().default("open"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** People to contact about a role: hiring manager, peer in seat, adjacent. */
+export const outreachTargets = sqliteTable("outreach_targets", {
+  id: text("id").primaryKey(),
+  companyId: text("company_id")
+    .notNull()
+    .references(() => companies.id),
+  name: text("name").notNull(),
+  title: text("title").notNull(),
+  kind: text("kind", { enum: outreachKinds }).notNull(),
+  linkedInUrl: text("linkedin_url"),
+  whyReachOut: text("why_reach_out").notNull(),
+  relatedRoleTitle: text("related_role_title"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const opportunities = sqliteTable("opportunities", {
   id: text("id").primaryKey(),
   companyId: text("company_id")
@@ -103,6 +143,12 @@ export type NewSignal = typeof signals.$inferInsert;
 export type PersonWatchlist = typeof peopleWatchlist.$inferSelect;
 export type NewPersonWatchlist = typeof peopleWatchlist.$inferInsert;
 
+export type OpenRole = typeof openRoles.$inferSelect;
+export type NewOpenRole = typeof openRoles.$inferInsert;
+
+export type OutreachTarget = typeof outreachTargets.$inferSelect;
+export type NewOutreachTarget = typeof outreachTargets.$inferInsert;
+
 export type Opportunity = typeof opportunities.$inferSelect;
 export type NewOpportunity = typeof opportunities.$inferInsert;
 
@@ -114,6 +160,8 @@ export const schema = {
   companies,
   signals,
   peopleWatchlist,
+  openRoles,
+  outreachTargets,
   opportunities,
   runLogs,
 } as const;
