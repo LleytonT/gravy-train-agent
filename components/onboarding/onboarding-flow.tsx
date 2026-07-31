@@ -61,6 +61,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
       const data = (await res.json()) as {
         error?: string;
+        detail?: string;
         identity?: {
           name?: string;
           currentTitle?: string;
@@ -73,7 +74,13 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       };
 
       if (!res.ok || !data.identity || !data.matches || !data.kickoffMessage) {
-        throw new Error(data.error ?? "Setup failed");
+        throw new Error(
+          typeof data.error === "string"
+            ? data.detail
+              ? `${data.error}: ${data.detail}`
+              : data.error
+            : "Setup failed",
+        );
       }
 
       onComplete({

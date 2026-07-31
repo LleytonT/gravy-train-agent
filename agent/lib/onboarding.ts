@@ -1,6 +1,10 @@
 /**
  * First-run onboarding: persist Career Identity + return personalized matches.
  * Used by POST /api/onboarding (no LLM required).
+ *
+ * On Vercel serverless, profile/DB writes go under /tmp and seed data is
+ * bootstrapped when empty. Profile persistence is best-effort — the kickoff
+ * message tells the Eve agent to call ingest_linkedin_profile into its sandbox.
  */
 
 import { ensureSchema } from "./db/client.js";
@@ -24,6 +28,7 @@ import {
   type CareerIdentity,
 } from "./role-affinity.js";
 import { scoreCompany } from "./scoring.js";
+import { ensureSeedData } from "./seed-bootstrap.js";
 
 export type { OnboardingInput, OnboardingMatch } from "./onboarding-types.js";
 
@@ -31,12 +36,74 @@ export type OnboardingResult = {
   identity: CareerIdentity;
   matches: OnboardingMatch[];
   kickoffMessage: string;
+  profilePersisted: boolean;
 };
+
+function tryPersistProfile(identity: CareerIdentity, interests?: string[]): boolean {
+  try {
+    updateUserProfile({
+      replaceSection: {
+        heading: "Career Identity",
+        content: formatCareerIdentitySection(identity),
+      },
+    });
+
+    const roleToday = `${identity.currentTitle} at ${identity.currentCompany}`;
+    updateUserProfile({
+      replaceSection: {
+        heading: "Identity",
+        content: [
+          `- Name: ${identity.name ?? ""}`,
+          `- WhatsApp: _(optional)_`,
+          `- Location: ${identity.location}`,
+          `- Role today: ${roleToday}`,
+        ].join("\n"),
+      },
+    });
+
+    updateUserProfile({
+      replaceSection: {
+        heading: "Targeting",
+        content: [
+          `- Role: ${identity.currentTitle}`,
+          `- Geography: ${identity.location}`,
+          `- Background: _(refine via chat)_`,
+          `- Role family: ${identity.roleFamily}`,
+        ].join("\n"),
+      },
+    });
+
+    if (interests?.length) {
+      updateUserProfile({
+        replaceSection: {
+          heading: "Interests",
+          content: [
+            `- Strong: ${interests.join(", ")}`,
+            `- Also open: _(tell me as we explore)_`,
+            `- Seed watchlist companies: Modal, Fireworks AI, Cursor, ElevenLabs, Decagon, Sierra`,
+            `- People-watchlist: _(add as we explore)_`,
+          ].join("\n"),
+        },
+      });
+    }
+
+    // Touch-read to confirm path is usable for preference parsing
+    readUserProfile();
+    return true;
+  } catch (err) {
+    console.warn(
+      "[onboarding] profile persist skipped:",
+      err instanceof Error ? err.message : err,
+    );
+    return false;
+  }
+}
 
 export async function completeOnboarding(
   input: OnboardingInput,
 ): Promise<OnboardingResult> {
   await ensureSchema();
+  await ensureSeedData();
 
   const roleFamily = detectRoleFamily(input.currentTitle);
   const geographyHints = extractGeographyHints(
@@ -59,54 +126,24 @@ export async function completeOnboarding(
       : undefined,
   };
 
-  updateUserProfile({
-    replaceSection: {
-      heading: "Career Identity",
-      content: formatCareerIdentitySection(identity),
-    },
-  });
+  const profilePersisted = tryPersistProfile(identity, input.interests);
 
-  const roleToday = `${identity.currentTitle} at ${identity.currentCompany}`;
-  updateUserProfile({
-    replaceSection: {
-      heading: "Identity",
-      content: [
-        `- Name: ${identity.name ?? ""}`,
-        `- WhatsApp: _(optional)_`,
-        `- Location: ${identity.location}`,
-        `- Role today: ${roleToday}`,
-      ].join("\n"),
-    },
-  });
-
-  updateUserProfile({
-    replaceSection: {
-      heading: "Targeting",
-      content: [
-        `- Role: ${identity.currentTitle}`,
-        `- Geography: ${identity.location}`,
-        `- Background: _(refine via chat)_`,
-        `- Role family: ${roleFamily}`,
-      ].join("\n"),
-    },
-  });
-
-  if (input.interests?.length) {
-    updateUserProfile({
-      replaceSection: {
-        heading: "Interests",
-        content: [
-          `- Strong: ${input.interests.join(", ")}`,
-          `- Also open: _(tell me as we explore)_`,
-          `- Seed watchlist companies: Modal, Fireworks AI, Cursor, ElevenLabs, Decagon, Sierra`,
-          `- People-watchlist: _(add as we explore)_`,
-        ].join("\n"),
-      },
-    });
+  let profileMarkdown = "";
+  try {
+    profileMarkdown = readUserProfile();
+  } catch {
+    profileMarkdown = [
+      "## Career Identity",
+      formatCareerIdentitySection(identity),
+      "",
+      "## Preferences",
+      "- preferHyperscalers: false",
+      "- avoidSeedStage: false",
+      "- ignoreCategories: ",
+    ].join("\n");
   }
 
-  const profile = readUserProfile();
-  const prefs = parsePreferences(profile);
+  const prefs = parsePreferences(profileMarkdown);
   const companies = await repo.listCompanies();
   const signalsByCompany = new Map();
   const scoresByCompany = new Map();
@@ -143,7 +180,7 @@ export async function completeOnboarding(
   }
 
   const recs = buildRoleRecommendations({
-    profileMarkdown: profile,
+    profileMarkdown,
     companies,
     signalsByCompany,
     scoresByCompany,
@@ -190,8 +227,9 @@ export async function completeOnboarding(
   const kickoffMessage = [
     `I just finished setup.`,
     `I'm a ${identity.currentTitle} at ${identity.currentCompany} in ${identity.location}.${interestPhrase}`,
-    `Walk me through the best gravy-train roles for me (use recommend_roles), highlight who to reach out to, ask 1–2 questions about what I want next, and keep updating my profile as we explore.`,
+    `First call ingest_linkedin_profile with name=${JSON.stringify(identity.name ?? "")}, currentTitle=${JSON.stringify(identity.currentTitle)}, currentCompany=${JSON.stringify(identity.currentCompany)}, location=${JSON.stringify(identity.location)}, headline=${JSON.stringify(identity.headline)}, summary=${JSON.stringify(identity.summary ?? "")}.`,
+    `Then call recommend_roles, walk me through the best gravy-train seats and who to reach out to, ask 1–2 questions about what I want next, and keep updating my profile as we explore.`,
   ].join(" ");
 
-  return { identity, matches, kickoffMessage };
+  return { identity, matches, kickoffMessage, profilePersisted };
 }

@@ -14,7 +14,7 @@
 - Role family label: Sales / Solutions / Field Engineer
 - Seniority: 
 - Geography hints: australia, sydney
-- Summary: Interests: AI infra / GPU, Developer tools
+- Summary: Interests: AI infra / GPU
 - Target titles: Sales Engineer, Solutions Engineer, Field Engineer, Deployment Engineer, Customer Engineer, Pre-Sales Engineer
 ## Identity
 
@@ -30,7 +30,7 @@
 - Role family: sales_engineer
 ## Interests
 
-- Strong: AI infra / GPU, Developer tools
+- Strong: AI infra / GPU
 - Also open: _(tell me as we explore)_
 - Seed watchlist companies: Modal, Fireworks AI, Cursor, ElevenLabs, Decagon, Sierra
 - People-watchlist: _(add as we explore)_
