@@ -8,10 +8,12 @@ The Gravy Train Index scores **companies**. Personalization maps the **user's ro
 
 ## Flow
 
-1. **Ingest profile** — `ingest_linkedin_profile` (from chat) or `pnpm capture:profile` (Playwright, read-only `/in/me/`).
-2. **Detect role family** — Sales Engineer → `sales_engineer` (also Field / Deployment / Solutions / Customer Engineer).
-3. **Recommend roles** — `recommend_roles` ranks watchlist companies by gravy score × role-fit × geography.
-4. **Outreach** — `find_outreach_targets` returns hiring manager / peer-in-seat / adjacent for each company. Persist new people with `action: save`.
+1. **Web onboarding** (default) — welcome → title / company / location / interests → `POST /api/onboarding` writes Career Identity and returns matches. UI shows a matches card and auto-sends a career-advisor kickoff.
+2. **Or ingest profile** — `ingest_linkedin_profile` (chat) or optional `pnpm capture:profile`.
+3. **Detect role family** — Sales Engineer → `sales_engineer` (also Field / Deployment / Solutions / Customer Engineer).
+4. **Recommend roles** — `recommend_roles` ranks watchlist companies by gravy score × role-fit × geography.
+5. **Outreach** — `find_outreach_targets` returns hiring manager / peer-in-seat / adjacent. Persist with `action: save`.
+6. **Keep learning** — as the user explores, update Interests / Targeting via `update_user_profile`.
 
 ## Example
 

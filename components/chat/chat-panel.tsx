@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useEveAgent } from "eve/react";
+import type { OnboardingMatch } from "@/agent/lib/onboarding-types";
 import type { HandleMessageStreamEvent, SessionState } from "eve/client";
+import { useEveAgent } from "eve/react";
+import { useEffect, useRef } from "react";
 
 import { ChatComposer } from "./chat-composer";
 import { ChatEmpty } from "./chat-empty";
@@ -18,6 +19,11 @@ type ChatPanelProps = {
   }) => void;
   onTitleSeed: (prompt: string) => void;
   sidebarToggle: React.ReactNode;
+  matches?: OnboardingMatch[];
+  identityLabel?: string;
+  /** Auto-send once after onboarding (career-advisor kickoff). */
+  autoKickoffMessage?: string | null;
+  onKickoffSent?: () => void;
 };
 
 export function ChatPanel({
@@ -27,6 +33,10 @@ export function ChatPanel({
   onPersist,
   onTitleSeed,
   sidebarToggle,
+  matches,
+  identityLabel,
+  autoKickoffMessage,
+  onKickoffSent,
 }: ChatPanelProps) {
   const agent = useEveAgent({
     initialEvents: initialEvents ?? [],
@@ -43,6 +53,9 @@ export function ChatPanel({
   const busy = agent.status === "submitted" || agent.status === "streaming";
   const scrollerRef = useRef<HTMLDivElement>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const kickoffStarted = useRef(false);
+  const sendRef = useRef(agent.send);
+  sendRef.current = agent.send;
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -62,6 +75,25 @@ export function ChatPanel({
       if (persistTimer.current) clearTimeout(persistTimer.current);
     };
   }, [agent.events, agent.session, onPersist]);
+
+  useEffect(() => {
+    if (!autoKickoffMessage) return;
+    if (kickoffStarted.current) return;
+    if ((initialEvents?.length ?? 0) > 0) return;
+    if (messages.length > 0) return;
+
+    kickoffStarted.current = true;
+    onTitleSeed(autoKickoffMessage);
+    void sendRef.current({ message: autoKickoffMessage }).finally(() => {
+      onKickoffSent?.();
+    });
+  }, [
+    autoKickoffMessage,
+    initialEvents,
+    messages.length,
+    onKickoffSent,
+    onTitleSeed,
+  ]);
 
   async function sendMessage(message: string) {
     if (messages.length === 0) onTitleSeed(message);
@@ -100,8 +132,26 @@ export function ChatPanel({
       </header>
 
       <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
-          <ChatEmpty onSuggestion={(prompt) => void sendMessage(prompt)} disabled={busy} />
+        {messages.length === 0 && !autoKickoffMessage ? (
+          <ChatEmpty
+            onSuggestion={(prompt) => void sendMessage(prompt)}
+            disabled={busy}
+            matches={matches}
+            identityLabel={identityLabel}
+          />
+        ) : messages.length === 0 && autoKickoffMessage ? (
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 md:px-6">
+            {matches && matches.length > 0 ? (
+              <MatchesCardBridge
+                matches={matches}
+                identityLabel={identityLabel}
+                onExplore={(prompt) => void sendMessage(prompt)}
+                disabled={busy}
+              />
+            ) : (
+              <p className="text-sm text-ink-muted">Starting your advisor…</p>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col gap-5 py-6 md:gap-6 md:py-8">
             {messages.map((message) => (
@@ -125,5 +175,26 @@ export function ChatPanel({
         onStop={() => agent.stop()}
       />
     </div>
+  );
+}
+
+function MatchesCardBridge({
+  matches,
+  identityLabel,
+  onExplore,
+  disabled,
+}: {
+  matches: OnboardingMatch[];
+  identityLabel?: string;
+  onExplore: (prompt: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <ChatEmpty
+      onSuggestion={onExplore}
+      disabled={disabled}
+      matches={matches}
+      identityLabel={identityLabel}
+    />
   );
 }
