@@ -4,7 +4,7 @@ Personal GTM opportunity agent for APAC tech sales. Built on [Eve](https://eve.d
 
 Connect your LinkedIn profile → Gravy Scout maps your role onto gravy-train companies (e.g. Sales Engineer at Vercel AU → Field / Deployment / Sales Engineer seats at Decagon, Sierra, Cursor, Fireworks) and names who to reach out to (hiring manager, peer in seat, adjacent).
 
-Every night it classifies what you missed on LinkedIn/X, maintains company dossiers, and pings WhatsApp when a real opportunity appears. You chat back to correct preferences — those updates persist.
+Every night it classifies what you missed on LinkedIn/X, maintains company dossiers, and pings **Telegram** when a real opportunity appears. You chat back (web or Telegram) to correct preferences — those updates persist.
 
 ## Stack
 
@@ -15,7 +15,7 @@ Every night it classifies what you missed on LinkedIn/X, maintains company dossi
 | Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
 | DB | SQLite via Drizzle + libSQL (Turso-ready `DATABASE_URL`) |
 | Capture | Playwright, your logged-in browser profile (read-only) |
-| Messaging | Twilio WhatsApp (+ Eve HTTP/TUI for local) |
+| Messaging | **Telegram** (primary) · Twilio WhatsApp optional fallback |
 
 ## Quick start (Phase 1)
 
@@ -30,7 +30,7 @@ pnpm dev           # Next.js chat UI + Eve agent (http://localhost:3000)
 pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Open the web app — first visit runs a 60-second setup (title, company, location, interests), then shows role matches and auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, matches still work from seed data; agent chat needs the key.
+Open the web app — first visit runs a short setup (role → **link Telegram** with consent → matches), then auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, matches still work from seed data; agent chat needs the key.
 
 To refresh Career Identity from a logged-in browser profile:
 
@@ -55,8 +55,8 @@ agent/
   skills/                  # opportunity-signals, scoring, nightly-pipeline
   tools/                   # snake_case Eve tools
   schedules/nightly_scout.ts
-  channels/                # eve, twilio, capture_sync
-  lib/                     # db, classify, scoring, profile
+  channels/                # eve, telegram, twilio, capture-sync
+  lib/                     # db, classify, scoring, profile, messaging
   sandbox/workspace/memory/user-profile.md
 capture/                   # Playwright (runs on your Mac, not on Vercel)
 scripts/seed.ts
@@ -65,9 +65,9 @@ scripts/seed.ts
 **Eve diffs vs the original build prompt (intentional):**
 
 - Authored files live under `agent/`, not repo root.
-- Tool filenames are snake_case (`get_new_feed_items.ts`).
+- Tool filenames are snake_case (`get_new_feed_items.ts`); channels are kebab-case.
 - Skills are progressive-disclosure markdown (model calls `load_skill`).
-- Twilio channel is first-class; WhatsApp uses `whatsapp:+…` addresses on the same Messages API.
+- Telegram is the primary push channel; WhatsApp remains an optional Twilio fallback.
 - Classification uses a **cheap model inside** `classify_feed_items`; the schedule still prompts the agent free-form.
 - Nightly cron is `0 13 * * *` UTC ≈ 23:00 AEST (DST drift during AEDT).
 
@@ -95,11 +95,29 @@ curl -X POST http://127.0.0.1:3000/eve/v1/dev/schedules/nightly_scout
 
 Port may vary — check the Eve dev server URL. Inspect the session stream for the digest.
 
-## WhatsApp (Phase 4)
+## Telegram (primary messaging)
+
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token and username.
+2. Set env (local `.env` + Vercel):
+   ```bash
+   vercel env add TELEGRAM_BOT_TOKEN production
+   vercel env add TELEGRAM_BOT_USERNAME production
+   vercel env add TELEGRAM_WEBHOOK_SECRET_TOKEN production   # openssl rand -hex 32
+   ```
+3. Deploy, then register the webhook (eve does **not** call `setWebhook` for you):
+   ```bash
+   curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+     -H "Content-Type: application/json" \
+     -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
+   ```
+4. Open the web app → onboarding → **Open @your_bot and tap Start** → consent to updates.
+5. Chat inbound on Telegram; nightly digests via `send_telegram_message` when linked + consented.
+
+## WhatsApp (optional fallback)
 
 1. Twilio sandbox → set `TWILIO_*`, `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886`, `WHATSAPP_TO=whatsapp:+61…`
 2. Point Messaging webhook at `https://<deploy>/eve/v1/twilio/messages`
-3. Chat inbound via Twilio channel; nightly digest via `send_whatsapp_message` tool
+3. Used only if Telegram is not linked and Twilio is configured.
 
 ## Deploy + local capture sync (Phase 5)
 

@@ -17,6 +17,10 @@ import {
   type OutreachTargetInput,
 } from "./personalize.js";
 import {
+  saveMessagingDestination,
+  telegramDeepLink,
+} from "./messaging.js";
+import {
   parsePreferences,
   readUserProfile,
   updateUserProfile,
@@ -39,7 +43,14 @@ export type OnboardingResult = {
   profilePersisted: boolean;
 };
 
-function tryPersistProfile(identity: CareerIdentity, interests?: string[]): boolean {
+function tryPersistProfile(
+  identity: CareerIdentity,
+  interests?: string[],
+  messaging?: {
+    telegramUsername?: string;
+    consentUpdates?: boolean;
+  },
+): boolean {
   try {
     updateUserProfile({
       replaceSection: {
@@ -87,6 +98,12 @@ function tryPersistProfile(identity: CareerIdentity, interests?: string[]): bool
       });
     }
 
+    saveMessagingDestination({
+      telegramUsername: messaging?.telegramUsername,
+      consentUpdates: messaging?.consentUpdates ?? false,
+      onboardingComplete: false,
+    });
+
     // Touch-read to confirm path is usable for preference parsing
     readUserProfile();
     return true;
@@ -126,7 +143,10 @@ export async function completeOnboarding(
       : undefined,
   };
 
-  const profilePersisted = tryPersistProfile(identity, input.interests);
+  const profilePersisted = tryPersistProfile(identity, input.interests, {
+    telegramUsername: input.telegramUsername,
+    consentUpdates: input.consentUpdates,
+  });
 
   let profileMarkdown = "";
   try {
@@ -224,11 +244,29 @@ export async function completeOnboarding(
     ? ` Interests: ${input.interests.join(", ")}.`
     : "";
 
+  const deepLink = telegramDeepLink();
+  const telegramBits = [
+    input.consentUpdates
+      ? "I consented to Telegram updates."
+      : "I have not linked Telegram yet.",
+    input.telegramUsername
+      ? `My Telegram username is @${input.telegramUsername.replace(/^@/, "")}.`
+      : null,
+    deepLink
+      ? `If chatId is not saved yet, remind me to open ${deepLink} and tap Start, then call save_messaging_destination when linked.`
+      : "Telegram bot is not configured in env yet — skip messaging link for now.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const kickoffMessage = [
     `I just finished setup.`,
     `I'm a ${identity.currentTitle} at ${identity.currentCompany} in ${identity.location}.${interestPhrase}`,
+    telegramBits,
+    `Load skill onboarding if messaging is not linked yet.`,
     `First call ingest_linkedin_profile with name=${JSON.stringify(identity.name ?? "")}, currentTitle=${JSON.stringify(identity.currentTitle)}, currentCompany=${JSON.stringify(identity.currentCompany)}, location=${JSON.stringify(identity.location)}, headline=${JSON.stringify(identity.headline)}, summary=${JSON.stringify(identity.summary ?? "")}.`,
-    `Then call recommend_roles, walk me through the best gravy-train seats and who to reach out to, ask 1–2 questions about what I want next, and keep updating my profile as we explore.`,
+    `Then call recommend_roles, walk me through the best gravy-train seats and who to reach out to, briefly explain how to use Gravy Scout (chat, preferences, nightly digests), ask 1–2 questions about what I want next, and keep updating my profile as we explore.`,
+    `When Telegram is linked, call save_messaging_destination with onboardingComplete=true.`,
   ].join(" ");
 
   return { identity, matches, kickoffMessage, profilePersisted };
