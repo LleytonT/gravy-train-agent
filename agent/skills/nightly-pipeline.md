@@ -14,7 +14,7 @@ Capture already ran locally. You consume the DB.
 6. `score_company` for every touched company; respect user-profile prefs.
 7. `create_opportunity` for immediate/digest tiers if no ping in last 48h.
 8. Draft digest ≤1,200 chars: urgents → what you missed (3–6 bullets) → asks.
-9. `send_whatsapp_message` if Twilio is configured (tool no-ops cleanly when not).
+9. `save_messaging_destination` action=read → if linked + consenting, `send_telegram_message`. Else try `send_whatsapp_message` if Twilio is configured (tools no-op cleanly when not).
 10. `mark_items_processed` + finish run log with counts.
 
 Always return the digest as your final message too (local/dev visibility).

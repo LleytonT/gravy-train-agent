@@ -10,6 +10,8 @@ const bodySchema = z.object({
   location: z.string().trim().min(1),
   interests: z.array(z.string().trim().min(1)).max(8).optional(),
   seniority: z.string().trim().optional(),
+  telegramUsername: z.string().trim().optional(),
+  consentUpdates: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {

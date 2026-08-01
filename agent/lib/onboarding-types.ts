@@ -7,6 +7,10 @@ export type OnboardingInput = {
   location: string;
   interests?: string[];
   seniority?: string;
+  /** Without @ — optional until they /start the bot */
+  telegramUsername?: string;
+  /** Explicit consent to receive nightly Telegram updates */
+  consentUpdates?: boolean;
 };
 
 export type OnboardingOutreach = {
