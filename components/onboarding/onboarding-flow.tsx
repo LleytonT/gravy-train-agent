@@ -3,6 +3,21 @@
 import { useEffect, useState } from "react";
 
 import type { OnboardingMatch } from "@/agent/lib/onboarding-types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+
 import { INTEREST_OPTIONS } from "./onboarding-storage";
 
 type OnboardingFlowProps = {
@@ -125,37 +140,33 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             }}
           />
           <div className="relative mx-auto w-full max-w-xl animate-rise">
-            <p className="font-mono text-[11px] tracking-[0.2em] text-signal-deep uppercase">
+            <Badge variant="secondary" className="font-mono text-[11px] uppercase tracking-[0.16em]">
               60-second setup
-            </p>
-            <h1 className="mt-4 font-display text-5xl leading-[0.95] font-semibold tracking-tight text-ink md:text-6xl">
+            </Badge>
+            <h1 className="mt-4 font-display text-5xl leading-[0.95] font-semibold tracking-tight md:text-6xl">
               Gravy Scout
             </h1>
-            <p className="mt-5 max-w-md text-lg leading-8 text-ink-muted text-balance">
+            <p className="mt-5 max-w-md text-lg leading-8 text-muted-foreground text-balance">
               Tell us who you are, link Telegram for nightly updates, then chat
               as your career advisor while we watch the gravy train.
             </p>
-            <ul className="mt-8 space-y-3 text-sm leading-6 text-ink">
+            <ul className="mt-8 space-y-3 text-sm leading-6">
               <li className="flex gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-signal" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 Role-fit matches at companies expanding into your territory
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-signal" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 Who to reach out to — hiring manager, peer in seat, adjacent
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-signal" />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 Telegram digests when a real opportunity appears
               </li>
             </ul>
-            <button
-              type="button"
-              onClick={() => setStep("setup")}
-              className="mt-10 inline-flex items-center justify-center rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-paper transition hover:bg-signal-deep"
-            >
+            <Button size="lg" className="mt-10" onClick={() => setStep("setup")}>
               Get started
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -167,208 +178,213 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       <div className="flex min-h-dvh flex-col overflow-y-auto">
         <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-12 md:px-8">
           <div className="animate-rise">
-            <p className="font-mono text-[11px] tracking-[0.2em] text-signal-deep uppercase">
+            <Badge variant="secondary" className="font-mono text-[11px] uppercase tracking-[0.16em]">
               Step 1 of 2
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+            </Badge>
+            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight">
               Your role today
             </h1>
-            <p className="mt-3 text-base leading-7 text-ink-muted">
+            <p className="mt-3 text-base leading-7 text-muted-foreground">
               Title, company, and location personalize the gravy train. Interests
               help us rank seats — refine anytime in chat.
             </p>
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (
-                !currentTitle.trim() ||
-                !currentCompany.trim() ||
-                !location.trim()
-              ) {
-                return;
-              }
-              setStep("messaging");
-            }}
-            className="animate-rise mt-8 space-y-5"
-            style={{ animationDelay: "80ms" }}
-          >
-            <Field
-              label="Name"
-              optional
-              value={name}
-              onChange={setName}
-              placeholder="Alex"
-              autoComplete="name"
-            />
-            <Field
-              label="Current title"
-              value={currentTitle}
-              onChange={setCurrentTitle}
-              placeholder="Sales Engineer"
-              required
-              autoComplete="organization-title"
-            />
-            <Field
-              label="Company"
-              value={currentCompany}
-              onChange={setCurrentCompany}
-              placeholder="Vercel"
-              required
-              autoComplete="organization"
-            />
-            <Field
-              label="Location"
-              value={location}
-              onChange={setLocation}
-              placeholder="Sydney, Australia"
-              required
-              autoComplete="address-level2"
-            />
-
-            <fieldset>
-              <legend className="text-sm font-medium text-ink">
-                Interests{" "}
-                <span className="font-normal text-ink-muted">(pick up to 5)</span>
-              </legend>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {INTEREST_OPTIONS.map((interest) => {
-                  const selected = interests.includes(interest);
-                  return (
-                    <button
-                      key={interest}
-                      type="button"
-                      onClick={() => toggleInterest(interest)}
-                      className={[
-                        "rounded-lg border px-3 py-1.5 text-sm transition",
-                        selected
-                          ? "border-signal bg-mist text-signal-deep"
-                          : "border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink",
-                      ].join(" ")}
-                    >
-                      {interest}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep("welcome")}
-                className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted transition hover:text-ink"
+          <Card className="animate-rise mt-8 border-border shadow-sm" style={{ animationDelay: "80ms" }}>
+            <CardContent className="pt-6">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (
+                    !currentTitle.trim() ||
+                    !currentCompany.trim() ||
+                    !location.trim()
+                  ) {
+                    return;
+                  }
+                  setStep("messaging");
+                }}
+                className="space-y-5"
               >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  !currentTitle.trim() ||
-                  !currentCompany.trim() ||
-                  !location.trim()
-                }
-                className="flex-1 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-paper transition hover:bg-signal-deep disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Continue
-              </button>
-            </div>
-          </form>
+                <Field
+                  label="Name"
+                  optional
+                  value={name}
+                  onChange={setName}
+                  placeholder="Alex"
+                  autoComplete="name"
+                />
+                <Field
+                  label="Current title"
+                  value={currentTitle}
+                  onChange={setCurrentTitle}
+                  placeholder="Sales Engineer"
+                  required
+                  autoComplete="organization-title"
+                />
+                <Field
+                  label="Company"
+                  value={currentCompany}
+                  onChange={setCurrentCompany}
+                  placeholder="Vercel"
+                  required
+                  autoComplete="organization"
+                />
+                <Field
+                  label="Location"
+                  value={location}
+                  onChange={setLocation}
+                  placeholder="Sydney, Australia"
+                  required
+                  autoComplete="address-level2"
+                />
+
+                <fieldset>
+                  <legend className="text-sm font-medium">
+                    Interests{" "}
+                    <span className="font-normal text-muted-foreground">
+                      (pick up to 5)
+                    </span>
+                  </legend>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {INTEREST_OPTIONS.map((interest) => {
+                      const selected = interests.includes(interest);
+                      return (
+                        <Button
+                          key={interest}
+                          type="button"
+                          size="sm"
+                          variant={selected ? "default" : "outline"}
+                          onClick={() => toggleInterest(interest)}
+                        >
+                          {interest}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep("welcome")}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={
+                      !currentTitle.trim() ||
+                      !currentCompany.trim() ||
+                      !location.trim()
+                    }
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
-  // messaging step
   return (
     <div className="flex min-h-dvh flex-col overflow-y-auto">
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-12 md:px-8">
         <div className="animate-rise">
-          <p className="font-mono text-[11px] tracking-[0.2em] text-signal-deep uppercase">
+          <Badge variant="secondary" className="font-mono text-[11px] uppercase tracking-[0.16em]">
             Step 2 of 2
-          </p>
-          <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink">
+          </Badge>
+          <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight">
             Get updates on Telegram
           </h1>
-          <p className="mt-3 text-base leading-7 text-ink-muted">
+          <p className="mt-3 text-base leading-7 text-muted-foreground">
             We&apos;ll text you when a real gravy-train opportunity shows up.
             You can chat back anytime — same agent as this web app.
           </p>
         </div>
 
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="animate-rise mt-8 space-y-5"
-          style={{ animationDelay: "80ms" }}
-        >
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-surface px-4 py-3">
-            <input
-              type="checkbox"
-              checked={consentUpdates}
-              onChange={(e) => setConsentUpdates(e.target.checked)}
-              className="mt-1"
-            />
-            <span className="text-sm leading-6 text-ink">
-              Use my Telegram to send nightly opportunity updates. I can reply
-              to chat or ask you to stop anytime.
-            </span>
-          </label>
-
-          <Field
-            label="Telegram username"
-            optional
-            value={telegramUsername}
-            onChange={setTelegramUsername}
-            placeholder="your_handle"
-            autoComplete="username"
-          />
-
-          {deepLink ? (
-            <a
-              href={deepLink}
-              target="_blank"
-              rel="noreferrer"
-              className="flex w-full items-center justify-center rounded-xl border border-signal bg-mist px-5 py-3 text-sm font-semibold text-signal-deep transition hover:bg-signal/15"
+        <Card className="animate-rise mt-8 border-border shadow-sm" style={{ animationDelay: "80ms" }}>
+          <CardHeader>
+            <CardTitle className="text-base">Messaging</CardTitle>
+            <CardDescription>
+              Optional now — you can finish setup and link later in chat.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={(e) => void handleSubmit(e)}
+              className="space-y-5"
             >
-              Open @{botUsername ?? "GravyScout"} and tap Start
-            </a>
-          ) : (
-            <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted">
-              Telegram bot isn&apos;t configured on this deploy yet. You can
-              finish setup now and link later in chat.
-            </p>
-          )}
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <Checkbox
+                  checked={consentUpdates}
+                  onCheckedChange={(checked) =>
+                    setConsentUpdates(checked === true)
+                  }
+                  className="mt-0.5"
+                />
+                <span className="text-sm leading-6">
+                  Use my Telegram to send nightly opportunity updates. I can reply
+                  to chat or ask you to stop anytime.
+                </span>
+              </label>
 
-          <p className="text-xs leading-5 text-ink-muted">
-            After you tap Start, we save your chat ID automatically. Digests
-            only go out when you&apos;ve consented.
-          </p>
+              <Field
+                label="Telegram username"
+                optional
+                value={telegramUsername}
+                onChange={setTelegramUsername}
+                placeholder="your_handle"
+                autoComplete="username"
+              />
 
-          {error ? (
-            <p className="rounded-xl border border-warn bg-warn-soft px-3 py-2 text-sm text-warn">
-              {error}
-            </p>
-          ) : null}
+              {deepLink ? (
+                <Button asChild variant="secondary" className="w-full" size="lg">
+                  <a href={deepLink} target="_blank" rel="noreferrer">
+                    Open @{botUsername ?? "GravyScout"} and tap Start
+                  </a>
+                </Button>
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    Telegram bot isn&apos;t configured on this deploy yet. You can
+                    finish setup now and link later in chat.
+                  </AlertDescription>
+                </Alert>
+              )}
 
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setStep("setup")}
-              disabled={busy}
-              className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted transition hover:text-ink disabled:opacity-50"
-            >
-              Back
-            </button>
-            <button
-              type="submit"
-              disabled={busy}
-              className="flex-1 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-paper transition hover:bg-signal-deep disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {busy ? "Finding matches…" : "See my matches"}
-            </button>
-          </div>
-        </form>
+              <p className="text-xs leading-5 text-muted-foreground">
+                After you tap Start, we save your chat ID automatically. Digests
+                only go out when you&apos;ve consented.
+              </p>
+
+              {error ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep("setup")}
+                  disabled={busy}
+                >
+                  Back
+                </Button>
+                <Button type="submit" className="flex-1" disabled={busy}>
+                  {busy ? "Finding matches…" : "See my matches"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -383,22 +399,23 @@ function Field(props: {
   optional?: boolean;
   autoComplete?: string;
 }) {
+  const id = props.label.toLowerCase().replace(/\s+/g, "-");
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-ink">
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className={cn("text-sm font-medium")}>
         {props.label}
         {props.optional ? (
-          <span className="font-normal text-ink-muted"> (optional)</span>
+          <span className="font-normal text-muted-foreground"> (optional)</span>
         ) : null}
-      </span>
-      <input
+      </Label>
+      <Input
+        id={id}
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
         placeholder={props.placeholder}
         required={props.required}
         autoComplete={props.autoComplete}
-        className="mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-muted/70 focus:border-signal"
       />
-    </label>
+    </div>
   );
 }

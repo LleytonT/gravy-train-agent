@@ -9,8 +9,11 @@ import {
   type OnboardingState,
 } from "@/components/onboarding/onboarding-storage";
 import { SiteHeader } from "@/components/site-header";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { HandleMessageStreamEvent, SessionState } from "eve/client";
+import { PanelLeftIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ChatPanel } from "./chat-panel";
 import { ChatSidebar } from "./chat-sidebar";
@@ -96,7 +99,6 @@ export function ChatShell() {
       saveOnboardingState(next);
       setOnboarding(next);
 
-      // Fresh thread titled for the advisor kickoff
       const thread = createThread(
         `${result.identity.currentTitle ?? "Role"} → gravy train`,
       );
@@ -172,8 +174,9 @@ export function ChatShell() {
 
   if (!hydrated) {
     return (
-      <div className="grid min-h-dvh place-items-center text-sm text-ink-muted">
-        Loading scout
+      <div className="grid min-h-dvh place-items-center gap-3">
+        <Skeleton className="h-4 w-32" />
+        <p className="text-sm text-muted-foreground">Loading scout</p>
       </div>
     );
   }
@@ -184,7 +187,7 @@ export function ChatShell() {
 
   if (!activeThread) {
     return (
-      <div className="grid min-h-dvh place-items-center text-sm text-ink-muted">
+      <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">
         Loading scout
       </div>
     );
@@ -218,7 +221,7 @@ export function ChatShell() {
           onRedoSetup={handleRedoSetup}
         />
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-w-0 flex-1 flex-col bg-background/40">
           <ChatPanel
             key={activeThread.id}
             threadId={activeThread.id}
@@ -231,13 +234,16 @@ export function ChatShell() {
             autoKickoffMessage={needsKickoff ? onboarding.kickoffMessage : null}
             onKickoffSent={handleKickoffSent}
             sidebarToggle={
-              <button
+              <Button
                 type="button"
-                className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink md:hidden"
+                variant="outline"
+                size="sm"
+                className="md:hidden"
                 onClick={() => setSidebarOpen(true)}
               >
+                <PanelLeftIcon data-icon="inline-start" />
                 Chats
-              </button>
+              </Button>
             }
           />
         </main>
