@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Manrope, Syne } from "next/font/google";
 
+import { Providers } from "@/components/providers";
+import { cn } from "@/lib/utils";
+
 import "./globals.css";
 
 const syne = Syne({
@@ -36,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${manrope.variable} ${ibmPlexMono.variable}`}
+      className={cn(syne.variable, manrope.variable, ibmPlexMono.variable, "font-sans")}
     >
       <body
         style={
@@ -45,10 +48,11 @@ export default function RootLayout({
             "--font-body": "var(--font-manrope), ui-sans-serif, system-ui, sans-serif",
             "--font-mono":
               "var(--font-ibm-plex-mono), ui-monospace, monospace",
+            "--font-sans": "var(--font-manrope), ui-sans-serif, system-ui, sans-serif",
           } as React.CSSProperties
         }
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

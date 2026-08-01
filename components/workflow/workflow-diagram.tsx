@@ -98,22 +98,22 @@ export function WorkflowDiagram() {
       : steps[activeIndex]?.title ?? "Starting";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-      <div className="border-b border-line px-4 py-4 md:px-6">
+    <div className="overflow-hidden rounded-xl border border-border bg-card ring-1 ring-foreground/10">
+      <div className="border-b border-border px-4 py-4 md:px-6">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-[11px] tracking-[0.16em] text-signal-deep uppercase">
+            <p className="font-mono text-[11px] tracking-[0.16em] text-primary uppercase">
               Live run
             </p>
-            <p className="mt-1 font-display text-lg font-semibold text-ink">
+            <p className="mt-1 font-display text-lg font-semibold">
               {currentLabel}
             </p>
           </div>
-          <p className="font-mono text-sm text-ink-muted">{percent}%</p>
+          <p className="font-mono text-sm text-muted-foreground">{percent}%</p>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-mist">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-signal transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            className="h-full rounded-full bg-primary transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -129,10 +129,10 @@ export function WorkflowDiagram() {
                 className={[
                   "relative flex min-h-[160px] flex-col rounded-xl border px-3 py-3 transition duration-500",
                   status === "active"
-                    ? "border-signal bg-mist shadow-[0_14px_30px_-20px_rgba(12,122,82,0.55)]"
+                    ? "border-primary bg-muted shadow-[0_14px_30px_-20px_rgba(12,122,82,0.55)]"
                     : status === "done"
-                      ? "border-signal-deep/50 bg-mist/80"
-                      : "border-line bg-paper",
+                      ? "border-primary/50 bg-muted/80"
+                      : "border-border bg-muted/40",
                 ].join(" ")}
               >
                 {index < steps.length - 1 ? (
@@ -140,7 +140,7 @@ export function WorkflowDiagram() {
                     aria-hidden
                     className={[
                       "pointer-events-none absolute top-8 -right-2 z-10 h-px w-3 transition",
-                      status === "done" ? "bg-signal" : "bg-line-strong",
+                      status === "done" ? "bg-primary" : "bg-border",
                     ].join(" ")}
                   />
                 ) : null}
@@ -149,25 +149,25 @@ export function WorkflowDiagram() {
                     className={[
                       "grid h-6 w-6 place-items-center rounded-md font-mono text-[11px] font-medium transition",
                       status === "active"
-                        ? "animate-pulse-dot bg-signal text-white"
+                        ? "animate-pulse-dot bg-primary text-white"
                         : status === "done"
-                          ? "bg-signal-deep text-white"
-                          : "bg-fog text-ink-muted",
+                          ? "bg-primary text-white"
+                          : "bg-secondary text-muted-foreground",
                     ].join(" ")}
                   >
                     {status === "done" ? "✓" : index + 1}
                   </span>
-                  <p className="font-display text-sm leading-5 font-semibold text-ink">
+                  <p className="font-display text-sm leading-5 font-semibold text-foreground">
                     {step.title}
                   </p>
                 </div>
-                <p className="mt-3 text-[12px] leading-5 text-ink-muted">
+                <p className="mt-3 text-[12px] leading-5 text-muted-foreground">
                   {step.detail}
                 </p>
                 <p
                   className={[
                     "mt-auto pt-3 font-mono text-[10px] tracking-[0.14em] uppercase",
-                    status === "pending" ? "text-ink-muted" : "text-signal-deep",
+                    status === "pending" ? "text-muted-foreground" : "text-primary",
                   ].join(" ")}
                 >
                   {status === "active"
@@ -186,25 +186,25 @@ export function WorkflowDiagram() {
             className={[
               "rounded-xl border px-4 py-3 transition duration-500",
               activeIndex >= 5
-                ? "border-signal bg-mist"
-                : "border-line bg-paper",
+                ? "border-primary bg-muted"
+                : "border-border bg-muted/40",
             ].join(" ")}
           >
-            <p className="font-mono text-[10px] tracking-[0.14em] text-ink-muted uppercase">
+            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
               Branch A
             </p>
-            <p className="mt-1 font-display text-sm font-semibold text-ink">
+            <p className="mt-1 font-display text-sm font-semibold text-foreground">
               Clear threshold
             </p>
-            <p className="mt-1 text-xs leading-5 text-ink-muted">
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
               Create opportunity and send WhatsApp digest.
             </p>
           </div>
           <div className="px-2 text-center">
-            <p className="font-mono text-[10px] tracking-[0.14em] text-signal-deep uppercase">
+            <p className="font-mono text-[10px] tracking-[0.14em] text-primary uppercase">
               Split
             </p>
-            <p className="mt-1 font-display text-sm font-semibold text-ink">
+            <p className="mt-1 font-display text-sm font-semibold text-foreground">
               Score gate
             </p>
           </div>
@@ -212,17 +212,17 @@ export function WorkflowDiagram() {
             className={[
               "rounded-xl border px-4 py-3 transition duration-500",
               activeIndex >= 5
-                ? "border-line-strong bg-paper"
-                : "border-line bg-paper",
+                ? "border-border-strong bg-muted/40"
+                : "border-border bg-muted/40",
             ].join(" ")}
           >
-            <p className="font-mono text-[10px] tracking-[0.14em] text-ink-muted uppercase">
+            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
               Branch B
             </p>
-            <p className="mt-1 font-display text-sm font-semibold text-ink">
+            <p className="mt-1 font-display text-sm font-semibold text-foreground">
               Stay quiet
             </p>
-            <p className="mt-1 text-xs leading-5 text-ink-muted">
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
               Keep dossier only. Roll weak signals into later digests.
             </p>
           </div>
@@ -239,10 +239,10 @@ export function WorkflowDiagram() {
                   className={[
                     "mt-0.5 grid h-6 w-6 place-items-center rounded-md font-mono text-[11px] transition",
                     status === "active"
-                      ? "animate-pulse-dot bg-signal text-white"
+                      ? "animate-pulse-dot bg-primary text-white"
                       : status === "done"
-                        ? "bg-signal-deep text-white"
-                        : "bg-fog text-ink-muted",
+                        ? "bg-primary text-white"
+                        : "bg-secondary text-muted-foreground",
                   ].join(" ")}
                 >
                   {status === "done" ? "✓" : index + 1}
@@ -251,16 +251,16 @@ export function WorkflowDiagram() {
                   <span
                     className={[
                       "mt-1 w-px flex-1 transition",
-                      status === "done" ? "bg-signal" : "bg-line-strong",
+                      status === "done" ? "bg-primary" : "bg-border",
                     ].join(" ")}
                   />
                 ) : null}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-display text-base font-semibold text-ink">
+                <p className="font-display text-base font-semibold text-foreground">
                   {step.title}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-ink-muted">
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {step.detail}
                 </p>
               </div>
