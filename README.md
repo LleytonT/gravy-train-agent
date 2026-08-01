@@ -30,7 +30,7 @@ pnpm dev           # Next.js chat UI + Eve agent (http://localhost:3000)
 pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Open the web app and ask things like “what roles fit me as an SE at Vercel?” or “who should I talk to at Decagon?”. Without `AI_GATEWAY_API_KEY`, chat still works against seed dossiers; classification batches no-op until the key is set.
+Open the web app — first visit runs a 60-second setup (title, company, location, interests), then shows role matches and auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, matches still work from seed data; agent chat needs the key.
 
 To refresh Career Identity from a logged-in browser profile:
 

@@ -9,6 +9,7 @@ type ChatSidebarProps = {
   onClose: () => void;
   onNewChat: () => void;
   onSelect: (id: string) => void;
+  onRedoSetup?: () => void;
 };
 
 function formatUpdatedAt(ts: number): string {
@@ -31,6 +32,7 @@ export function ChatSidebar({
   onClose,
   onNewChat,
   onSelect,
+  onRedoSetup,
 }: ChatSidebarProps) {
   return (
     <>
@@ -108,6 +110,18 @@ export function ChatSidebar({
             })
           )}
         </nav>
+
+        {onRedoSetup ? (
+          <div className="border-t border-line px-3 py-3">
+            <button
+              type="button"
+              onClick={onRedoSetup}
+              className="w-full rounded-lg px-2 py-2 text-left text-xs text-ink-muted transition hover:bg-surface hover:text-ink"
+            >
+              Redo setup
+            </button>
+          </div>
+        ) : null}
       </aside>
     </>
   );

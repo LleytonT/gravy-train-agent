@@ -3,15 +3,14 @@ import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+import { resolveRuntimeDatabaseUrl } from "../runtime-paths.js";
 import { schema, type Schema } from "./schema.js";
-
-const DEFAULT_DATABASE_URL = "file:./data/gravy-scout.db";
 
 let dbInstance: (LibSQLDatabase<Schema> & { $client: Client }) | null = null;
 let clientInstance: Client | null = null;
 
 function resolveDatabaseUrl(): string {
-  return process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL;
+  return resolveRuntimeDatabaseUrl(process.env.DATABASE_URL);
 }
 
 function ensureDataDirectory(databaseUrl: string): void {
@@ -20,14 +19,21 @@ function ensureDataDirectory(databaseUrl: string): void {
   }
 
   const filePath = databaseUrl.slice("file:".length);
-  const absolutePath = resolve(process.cwd(), filePath);
+  const absolutePath = filePath.startsWith("/")
+    ? filePath
+    : resolve(process.cwd(), filePath);
   mkdirSync(dirname(absolutePath), { recursive: true });
 }
 
 function createDbClient(): Client {
   const url = resolveDatabaseUrl();
   ensureDataDirectory(url);
-  return createClient({ url });
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+  return createClient(
+    authToken && !url.startsWith("file:")
+      ? { url, authToken }
+      : { url },
+  );
 }
 
 export function getDb(): LibSQLDatabase<Schema> & { $client: Client } {
