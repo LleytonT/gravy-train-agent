@@ -46,13 +46,31 @@ function ToolPart({ part }: { part: Extract<EveMessagePart, { type: "dynamic-too
   );
 }
 
-function TextBlock({ text, streaming }: { text: string; streaming?: boolean }) {
+function TextBlock({
+  text,
+  streaming,
+  tone = "default",
+}: {
+  text: string;
+  streaming?: boolean;
+  tone?: "default" | "onInk";
+}) {
   if (!text && !streaming) return null;
   return (
-    <div className="whitespace-pre-wrap text-[15px] leading-7 text-ink">
+    <div
+      className={[
+        "whitespace-pre-wrap text-[15px] leading-7",
+        tone === "onInk" ? "text-paper" : "text-ink",
+      ].join(" ")}
+    >
       {text}
       {streaming ? (
-        <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-[2px] animate-pulse-dot bg-signal" />
+        <span
+          className={[
+            "ml-0.5 inline-block h-4 w-[2px] translate-y-[2px] animate-pulse-dot",
+            tone === "onInk" ? "bg-paper" : "bg-signal",
+          ].join(" ")}
+        />
       ) : null}
     </div>
   );
@@ -95,6 +113,7 @@ export function MessageBubble({ message }: { message: EveMessage }) {
                   key={`${message.id}-text-${index}`}
                   text={part.text}
                   streaming={part.state === "streaming"}
+                  tone={isUser ? "onInk" : "default"}
                 />
               );
             }
