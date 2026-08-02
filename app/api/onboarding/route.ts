@@ -14,6 +14,7 @@ const bodySchema = z.object({
   location: z.string().trim().min(1),
   interests: z.array(z.string().trim().min(1)).max(8).optional(),
   seniority: z.string().trim().optional(),
+  /** Display metadata only — does not link Telegram. */
   telegramUsername: z.string().trim().optional(),
   consentUpdates: z.boolean().optional(),
 });

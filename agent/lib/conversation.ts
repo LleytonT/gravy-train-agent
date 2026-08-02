@@ -135,6 +135,22 @@ export async function createConversation(
   return created!;
 }
 
+/**
+ * Return the member's most recently updated active conversation, or create one.
+ * Used by Telegram (and other surfaces) that share the canonical timeline.
+ */
+export async function getOrCreateActiveConversation(
+  memberId: string,
+  options?: { title?: string },
+): Promise<Conversation> {
+  const { conversations: existing } = await listConversations(memberId, {
+    limit: 1,
+  });
+  const active = existing.find((row) => row.status === "active");
+  if (active) return active;
+  return createConversation(memberId, options);
+}
+
 export async function listConversations(
   memberId: string,
   options?: { cursor?: string; limit?: number },

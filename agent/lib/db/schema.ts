@@ -109,6 +109,31 @@ export const channelIdentities = pgTable(
   ],
 );
 
+/**
+ * Short-lived, single-use deep-link tokens for binding a Telegram user ID
+ * to an authenticated member. Store only a hash of the token.
+ */
+export const channelLinkTokens = pgTable(
+  "channel_link_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    provider: text("provider", { enum: channelProviders }).notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    consumedByExternalUserId: text("consumed_by_external_user_id"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("uq_channel_link_tokens_hash").on(table.tokenHash),
+    index("idx_channel_link_tokens_member_id").on(table.memberId),
+    index("idx_channel_link_tokens_expires_at").on(table.expiresAt),
+  ],
+);
+
 export const connections = pgTable(
   "connections",
   {
@@ -749,9 +774,15 @@ export type NewMessage = typeof messages.$inferInsert;
 export type AgentSession = typeof agentSessions.$inferSelect;
 export type NewAgentSession = typeof agentSessions.$inferInsert;
 
+export type ChannelIdentity = typeof channelIdentities.$inferSelect;
+export type NewChannelIdentity = typeof channelIdentities.$inferInsert;
+export type ChannelLinkToken = typeof channelLinkTokens.$inferSelect;
+export type NewChannelLinkToken = typeof channelLinkTokens.$inferInsert;
+
 export const schema = {
   members,
   channelIdentities,
+  channelLinkTokens,
   connections,
   careerProfiles,
   preferences,

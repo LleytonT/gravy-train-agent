@@ -43,24 +43,57 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [currentCompany, setCurrentCompany] = useState("");
   const [location, setLocation] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
-  const [telegramUsername, setTelegramUsername] = useState("");
   const [consentUpdates, setConsentUpdates] = useState(true);
   const [deepLink, setDeepLink] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch("/api/messaging-config")
       .then((res) => res.json())
-      .then((data: { deepLink?: string | null; botUsername?: string | null }) => {
-        setDeepLink(data.deepLink ?? null);
-        setBotUsername(data.botUsername ?? null);
-      })
+      .then(
+        (data: {
+          botUsername?: string | null;
+          configured?: boolean;
+        }) => {
+          setBotUsername(data.botUsername ?? null);
+          setTelegramConfigured(Boolean(data.configured));
+        },
+      )
       .catch(() => {
         /* optional — bot may not be configured locally yet */
       });
   }, []);
+
+  async function mintTelegramLink() {
+    setLinkBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/telegram/link", { method: "POST" });
+      const data = (await res.json()) as {
+        error?: string;
+        deepLink?: string | null;
+        expiresAt?: string;
+        botUsername?: string | null;
+        configured?: boolean;
+      };
+      if (!res.ok) {
+        throw new Error(data.error ?? "Could not create Telegram link");
+      }
+      setDeepLink(data.deepLink ?? null);
+      setLinkExpiresAt(data.expiresAt ?? null);
+      if (data.botUsername) setBotUsername(data.botUsername);
+      setTelegramConfigured(Boolean(data.configured ?? data.deepLink));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create link");
+    } finally {
+      setLinkBusy(false);
+    }
+  }
 
   function toggleInterest(interest: string) {
     setInterests((prev) =>
@@ -87,7 +120,6 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           currentCompany: currentCompany.trim(),
           location: location.trim(),
           interests,
-          telegramUsername: telegramUsername.trim() || undefined,
           consentUpdates,
         }),
       });
@@ -303,8 +335,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             Get updates on Telegram
           </h1>
           <p className="mt-3 text-base leading-7 text-muted-foreground">
-            We&apos;ll text you when a real gravy-train opportunity shows up.
-            You can chat back anytime — same agent as this web app.
+            Link with a one-time deep link from this signed-in account. Chat
+            stays in sync with the web — usernames alone cannot link.
           </p>
         </div>
 
@@ -334,33 +366,55 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 </span>
               </label>
 
-              <Field
-                label="Telegram username"
-                optional
-                value={telegramUsername}
-                onChange={setTelegramUsername}
-                placeholder="your_handle"
-                autoComplete="username"
-              />
-
               {deepLink ? (
-                <Button asChild variant="secondary" className="w-full" size="lg">
-                  <a href={deepLink} target="_blank" rel="noreferrer">
-                    Open @{botUsername ?? "GravyScout"} and tap Start
-                  </a>
+                <div className="space-y-2">
+                  <Button asChild variant="secondary" className="w-full" size="lg">
+                    <a href={deepLink} target="_blank" rel="noreferrer">
+                      Open @{botUsername ?? "GravyScout"} and tap Start
+                    </a>
+                  </Button>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    One-time link
+                    {linkExpiresAt
+                      ? ` · expires ${new Date(linkExpiresAt).toLocaleTimeString()}`
+                      : ""}
+                    . Do not share it.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={linkBusy}
+                    onClick={() => void mintTelegramLink()}
+                  >
+                    {linkBusy ? "Minting…" : "Generate a fresh link"}
+                  </Button>
+                </div>
+              ) : telegramConfigured || botUsername ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  size="lg"
+                  disabled={linkBusy}
+                  onClick={() => void mintTelegramLink()}
+                >
+                  {linkBusy
+                    ? "Creating secure link…"
+                    : `Create link for @${botUsername ?? "GravyScout"}`}
                 </Button>
               ) : (
                 <Alert>
                   <AlertDescription>
                     Telegram bot isn&apos;t configured on this deploy yet. You can
-                    finish setup now and link later in chat.
+                    finish setup now and link later from a one-time web link.
                   </AlertDescription>
                 </Alert>
               )}
 
               <p className="text-xs leading-5 text-muted-foreground">
-                After you tap Start, we save your chat ID automatically. Digests
-                only go out when you&apos;ve consented.
+                After you tap Start, we bind your Telegram user ID (not your
+                username) and digests only go out when you&apos;ve consented.
               </p>
 
               {error ? (
