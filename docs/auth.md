@@ -1,52 +1,53 @@
 # Authentication and member context
 
-Gravy Scout uses Clerk for end-member authentication and an internal identity module for stable `memberId` values.
+Gravy Scout verifies members primarily through **Telegram Login**. Clerk remains an optional secondary web path. The identity module maps verified principals to stable internal `memberId` values.
 
-## Provisioning
+## Why not Clerk-first?
 
-Clerk is installed through the Vercel Marketplace resource `gravy-scout-auth` and connected to the project's production, preview, and development environments. Pull keys without printing them:
+Clerk is useful managed email auth, but Gravy Scout's product surface already depends on a verified Telegram user ID for digests and conversation sync. Asking for Clerk before the member is ready to use the product created friction without adding product value. Telegram Login proves the same identity the bot channel needs.
 
-```bash
-pnpm dlx vercel@latest env pull .env.local --yes
-```
+## Public vs secure
 
-Required variables:
+| Surface | Auth |
+| --- | --- |
+| `/`, `/how-it-works`, `/get-started` | Public |
+| `/api/onboarding/preview` | Public (no persistence) |
+| `/api/auth/*` | Public entry points |
+| `/app/*` workspace | Member session (Telegram) or Clerk |
+| Conversation / opportunity / profile APIs | `requireAuthenticatedMember()` |
 
-- `CLERK_SECRET_KEY`
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
-- `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
+## Telegram Login flow
+
+1. Member completes career snapshot on `/get-started` and previews matches without signing in.
+2. At “Save & enter workspace”, they verify with the Telegram Login Widget.
+3. `POST /api/auth/telegram` verifies the widget HMAC, upserts the member via `upsertMemberFromTelegramLogin`, binds `channel_identities`, and sets an httpOnly `gs_member_session` JWT.
+4. Eve accepts that JWT through `memberSessionAuth()`.
+
+Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME`. Optionally set `MEMBER_SESSION_SECRET` (defaults to a SHA-256 of the bot token).
+
+## Optional Clerk
+
+If Clerk keys are present:
+
+- Email sign-in remains available as a secondary control on `/get-started`.
+- `clerkMemberAuth()` still works for Eve.
+- `/api/auth/token` can bridge a Clerk principal into a member-session JWT.
+
+Local Eve TUI / loopback still uses `localDevMemberAuth()` → `external_auth_id = local-dev`.
 
 ## Request flow
 
-1. `proxy.ts` runs `clerkMiddleware` and calls `auth.protect()` on every non-public route.
-2. Public routes: `/how-it-works`, `/sign-in`, `/sign-up`, `/eve/v1/health`, `/api/messaging-config`, `/api/inbound/resend` (Resend Svix signature).
-3. Protected Next route handlers call `requireAuthenticatedMember()` (`lib/auth/member.ts`), which upserts `members.external_auth_id = Clerk userId`.
-4. Telegram linking uses authenticated `POST /api/telegram/link` (see `docs/telegram-link.md`); Eve's Telegram webhook remains verified by `TELEGRAM_WEBHOOK_SECRET_TOKEN`.
-5. The web chat client sends a Clerk session JWT as `Authorization: Bearer …` to Eve.
-6. `agent/channels/eve.ts` walks auth as `[clerkMemberAuth(), vercelOidc(), localDevMemberAuth()]` — anonymous `none()` is removed.
-7. Eve tools read `ctx.session.auth.current.attributes.memberId` through `requireMemberCaller()`. Client-supplied member IDs are ignored.
-
-## Local Eve development
-
-`pnpm dev:tui` / `pnpm dev:no-ui` on loopback still work via `localDevMemberAuth()`, which maps to a durable `external_auth_id = local-dev` member. That path is for explicit local development only; production browser traffic must authenticate with Clerk.
-
-`vercelOidc()` remains available for the Eve CLI and internal Vercel callers. Those principals do not automatically receive a memberId; member-scoped tools fail closed until a Clerk or local-dev member context is present.
-
-## Chat authorization notes
-
-The web chat sends a Clerk session JWT as `Authorization: Bearer …`. Eve verifies it with `@clerk/backend` (`verifyToken` / `authenticateRequest`). Do **not** default `authorizedParties` to localhost — Clerk session tokens often carry an `azp` for the Clerk Frontend API, and a mismatched allowlist produces Eve's `Authorization is required for this route.` 401. Set `CLERK_AUTHORIZED_PARTIES` only when you intentionally pin `azp` origins.
-
-Kickoff messages wait for Clerk `isLoaded` + `isSignedIn` before calling Eve.
+1. `proxy.ts` keeps marketing + get-started public. `/app` redirects to `/get-started?verify=1` when neither a member session nor Clerk session is present. Other protected APIs fall through to Clerk `auth.protect()` only when no member session cookie exists.
+2. Handlers call `requireAuthenticatedMember()` (`lib/auth/member.ts`), which prefers the member-session cookie, then Clerk.
+3. Telegram deep-link minting (`POST /api/telegram/link`) remains for reconnect; Login Widget already binds identity on first verify.
+4. Chat sends the member-session JWT as `Authorization: Bearer …` via `/api/auth/token`.
+5. Eve auth walk: `[memberSessionAuth(), clerkMemberAuth(), vercelOidc(), localDevMemberAuth()]` — anonymous `none()` stays removed.
+6. Tools read `attributes.memberId` through `requireMemberCaller()`.
 
 ## Verification
 
 ```bash
 pnpm test:auth
-pnpm test:database
-pnpm test:inbound
+pnpm test:telegram-login
 pnpm typecheck
-pnpm build
 ```
-
-`test:auth` checks that anonymous Eve auth is gone, middleware protects private routes, and identity upserts are isolated by external subject.

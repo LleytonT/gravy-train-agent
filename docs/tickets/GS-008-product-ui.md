@@ -2,13 +2,15 @@
 
 Blocked by: GS-003, GS-004, and GS-007.
 
+Status: implemented on branch (public product shell, progressive onboarding, Today/Opportunities/Conversation/Profile, Telegram-first deferred auth). Mobbin MCP was unavailable in the environment — UI decisions are not claimed as Mobbin-informed.
+
 ## Goal
 
 Turn the prototype chat shell into a clear onboarding and daily opportunity workspace built from shadcn/ui primitives.
 
 ## Prerequisite
 
-Connect the Mobbin MCP server and record the specific onboarding, inbox, opportunity-detail, and connected-account references used. Do not describe generic memory as Mobbin research.
+Connect the Mobbin MCP server and record the specific onboarding, inbox, opportunity-detail, and connected-account references used. Do not describe generic memory as Mobbin research. (Blocked in this environment — see `docs/agents/skills.md`.)
 
 ## Scope
 
