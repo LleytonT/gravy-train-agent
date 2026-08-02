@@ -308,4 +308,30 @@ for (const expected of ["Decagon", "Sierra", "Cursor", "Fireworks AI"]) {
   }
 }
 
+// GS-007 scoring migration: inbound job_alert_listing is concurrent/immediate.
+const alertOnly = scoreCompany([
+  {
+    type: "job_alert_listing",
+    direction: "positive",
+    strength: 5,
+    summary: "Sales Engineer at Decagon (Sydney)",
+    observedAt: daysAgo(0),
+  },
+]);
+if (alertOnly.pingTier !== "immediate" && alertOnly.pingTier !== "digest") {
+  throw new Error(
+    `job_alert_listing should be concurrent/immediate-leading, got ${alertOnly.pingTier}`,
+  );
+}
+if (alertOnly.timing < 2) {
+  throw new Error(
+    `job_alert_listing should contribute timing, got ${alertOnly.timing}`,
+  );
+}
+console.log("job_alert_listing scoring", {
+  pingTier: alertOnly.pingTier,
+  timing: alertOnly.timing,
+  score: alertOnly.score,
+});
+
 console.log("smoke scoring + personalization ok");

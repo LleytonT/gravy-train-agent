@@ -6,20 +6,25 @@ Gravy Scout captures LinkedIn, Seek, Indeed, and generic job-board alerts throug
 
 **Resend** is provisioned through the Vercel Marketplace (native messaging integration). It supplies `RESEND_API_KEY` and supports inbound receiving plus Svix-signed webhooks.
 
+**Production domain:** `gravy.sh` (Vercel registrar + nameservers). Resource name: `gravy-scout-email`.
+
 ```bash
 pnpm dlx vercel@latest link --yes \
   --scope lleytons-projects-cacece87 \
   --project gravy-train-agent
-pnpm dlx vercel@latest integration add resend --yes
+pnpm dlx vercel@latest integration add resend --name gravy-scout-email --plan free \
+  -m domain=gravy.sh -m region=us-east-1
 pnpm dlx vercel@latest env pull .env.local --yes
 ```
 
-Then in the Resend dashboard (or Marketplace-managed team):
+Configured for this project:
 
-1. Enable **Receiving** on a domain — prefer a subdomain such as `alerts.yourdomain.com` or the Resend-managed `*.resend.app` receiving address.
-2. Set `RESEND_INBOUND_DOMAIN` to that domain (no `@`).
-3. Add a webhook for `email.received` pointing at `https://<deployment>/api/inbound/resend`.
-4. Copy the webhook signing secret into `RESEND_WEBHOOK_SECRET`.
+1. Receiving **enabled** on `gravy.sh` (root MX → Resend inbound; free plan allows one domain).
+2. `RESEND_INBOUND_DOMAIN=gravy.sh` (aliases look like `gs_…@gravy.sh`).
+3. Webhook `email.received` → `https://gravy.sh/api/inbound/resend`.
+4. `RESEND_WEBHOOK_SECRET` set on Production / Preview / Development.
+
+Pull env after Marketplace changes: `pnpm dlx vercel@latest env pull .env.local --yes`.
 
 ## Member aliases
 

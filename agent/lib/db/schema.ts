@@ -628,8 +628,22 @@ export const opportunities = pgTable(
     companyId: text("company_id")
       .notNull()
       .references(() => companies.id),
+    candidateRoleId: uuid("candidate_role_id").references(
+      () => candidateRoles.id,
+      { onDelete: "set null" },
+    ),
     headline: text("headline").notNull(),
     score: doublePrecision("score").notNull(),
+    /** Reproducible scoring algorithm id — see agent/lib/scoring.ts + discovery SCORE_VERSION. */
+    scoreVersion: text("score_version"),
+    scoreInputs: jsonb("score_inputs")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    /** Evidence-backed rationale; must cite persisted signal ids. */
+    rationale: text("rationale"),
+    /** Fingerprint of material fields for digest noop detection. */
+    materialHash: text("material_hash"),
     pingedAt: text("pinged_at"),
     status: text("status", { enum: opportunityStatuses }).notNull(),
     createdAt: text("created_at").notNull(),
@@ -638,6 +652,7 @@ export const opportunities = pgTable(
   (table) => [
     index("idx_opportunities_member_id").on(table.memberId),
     index("idx_opportunities_company_id").on(table.companyId),
+    index("idx_opportunities_candidate_role_id").on(table.candidateRoleId),
   ],
 );
 

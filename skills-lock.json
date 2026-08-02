@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "agent-email-inbox": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "skillPath": "skills/agent-email-inbox/SKILL.md",
+      "computedHash": "25ffa798578026fcfdc5bdbe5b10ec2d2cd1784f8a94344c0ac055f3a82b57d4"
+    },
     "clerk-backend-api": {
       "source": "clerk/skills",
       "sourceType": "github",
@@ -49,6 +55,12 @@
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
       "computedHash": "363cb0f53b0b431e7c00086ad1f823500b7e1b70b5616ee969c979f0934e9e6e"
     },
+    "email-best-practices": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "skillPath": "skills/email-best-practices/SKILL.md",
+      "computedHash": "c7218333381fa335b8a912bd55b3bb58b5b567a174f9e1d8b41940ff82f1a6b6"
+    },
     "handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -72,6 +84,24 @@
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
       "computedHash": "7985b983f8ae5e36d88b82bcc2f3353726d22ced9be97d438681b308afed509e"
+    },
+    "react-email": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-email/SKILL.md",
+      "computedHash": "ff40e3355c318e5ef203eb1118cab574454ce65dae01bb268b05a2e244b8041b"
+    },
+    "resend": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "skillPath": "skills/resend/SKILL.md",
+      "computedHash": "8935525a4d7fa21298616b7c6150148a7df3afcfffd7ea9dca6fdac155fe0ece"
+    },
+    "resend-cli": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "skillPath": "skills/resend-cli/SKILL.md",
+      "computedHash": "846e3ea34ed68947e1a50011907decdd9693bfc3471e97113cefa032e099f9c2"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",

@@ -23,6 +23,7 @@
     "test:conversation": "tsx scripts/smoke-conversation.ts",
     "test:telegram-link": "tsx scripts/smoke-telegram-link.ts",
     "test:inbound": "tsx scripts/smoke-inbound.ts",
+    "test:discovery": "tsx scripts/smoke-discovery.ts",
     "capture": "tsx capture/run-capture.ts",
     "capture:dry": "tsx capture/run-capture.ts --dry-run",
     "capture:x": "tsx capture/run-capture.ts --source=x",

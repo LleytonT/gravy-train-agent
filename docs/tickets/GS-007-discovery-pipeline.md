@@ -2,6 +2,8 @@
 
 Blocked by: GS-003 and GS-006.
 
+Status: implemented on branch (`runDiscovery` orchestrator + subagents + schedule handler).
+
 ## Goal
 
 Turn job alerts and public company evidence into explainable, member-specific opportunities through an idempotent discovery run.
@@ -34,3 +36,12 @@ One orchestrator method accepts a run trigger and returns a structured run outco
 ## Not in scope
 
 Autonomous outreach, application submission, or unsupported social scraping.
+
+## Implementation notes
+
+- Seam: `agent/lib/discovery/run.ts` → `runDiscovery`
+- Docs: `docs/discovery.md`
+- Subagents: `job_alert_analyst`, `company_researcher`, `fit_analyst`
+- Schedule: handler-form `nightly_scout` (no free-form markdown)
+- Migration: `drizzle/0008_opportunity_provenance.sql`
+- Verify: `pnpm test:discovery` + `pnpm test:scoring`
