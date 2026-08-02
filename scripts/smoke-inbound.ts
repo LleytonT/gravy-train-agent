@@ -129,7 +129,15 @@ async function main() {
     "proxy must allow public Resend webhook route",
   );
 
+  console.log("smoke-inbound: pure checks ok");
+
   // --- DB-backed acceptance ---
+  if (!process.env.DATABASE_URL?.trim()) {
+    throw new Error(
+      "DATABASE_URL is required for DB acceptance checks. Pull `.env.local` from Vercel after Neon + Resend provisioning.",
+    );
+  }
+
   process.env.RESEND_INBOUND_DOMAIN =
     process.env.RESEND_INBOUND_DOMAIN?.trim() || "alerts.example.invalid";
 
