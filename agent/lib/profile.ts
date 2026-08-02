@@ -1,3 +1,12 @@
+/**
+ * Legacy Markdown profile helpers.
+ *
+ * GS-003 moved authoritative member state to `agent/lib/career-profile.ts`
+ * (Postgres). Prefer that module from tools and product code. These helpers
+ * remain for local capture scripts and deterministic scoring smoke tests that
+ * still pass Markdown strings into personalize/scoring.
+ */
+
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
