@@ -177,6 +177,7 @@ const signalsByCompany = new Map<string, Signal[]>([
     [
       {
         id: "1",
+        memberId: null,
         companyId: "decagon",
         type: "adjacent_se_csm",
         direction: "positive",
@@ -194,6 +195,7 @@ const signalsByCompany = new Map<string, Signal[]>([
     [
       {
         id: "2",
+        memberId: null,
         companyId: "sierra",
         type: "adjacent_se_csm",
         direction: "positive",
@@ -211,6 +213,7 @@ const signalsByCompany = new Map<string, Signal[]>([
     [
       {
         id: "3",
+        memberId: null,
         companyId: "cursor",
         type: "talent_flow_strong_org",
         direction: "positive",
@@ -228,6 +231,7 @@ const signalsByCompany = new Map<string, Signal[]>([
     [
       {
         id: "4",
+        memberId: null,
         companyId: "fireworks",
         type: "adjacent_se_csm",
         direction: "positive",

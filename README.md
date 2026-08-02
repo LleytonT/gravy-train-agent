@@ -20,7 +20,7 @@ The remaining sections document how to run and inspect the current prototype whi
 | Agent | Eve (`agent/` filesystem layout) |
 | Web UI | Next.js + `useEveAgent` (same-origin `/eve/v1/*` via `withEve`) |
 | Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
-| DB | Current: SQLite/libSQL prototype · Target: Neon Postgres + Drizzle migrations |
+| DB | Neon Postgres + Drizzle migrations |
 | Capture | Playwright, your logged-in browser profile (read-only) |
 | Messaging | **Telegram** (primary) · Twilio WhatsApp optional fallback |
 
@@ -32,12 +32,13 @@ cp .env.example .env
 # Add AI_GATEWAY_API_KEY (or `vercel link` + OIDC)
 
 pnpm install
+pnpm db:migrate    # apply committed migrations to DATABASE_URL_UNPOOLED
 pnpm seed          # fake Modal/Fireworks/Cursor/ElevenLabs dossiers
 pnpm dev           # Next.js chat UI + Eve agent (http://localhost:3000)
 pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Open the web app — first visit runs the prototype setup (role → optional Telegram details → matches), then auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, matches still work from seed data; agent chat needs the key. Telegram and web currently use separate Eve sessions, and the web thread list is browser-local.
+Provision Neon through the Vercel Marketplace and pull `.env.local` before migrating. Demo data is created only by the explicit `pnpm seed` command; production cold starts never seed automatically. Open the web app — first visit runs the prototype setup (role → optional Telegram details → matches), then auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, seeded matches still work; agent chat needs the key. Telegram and web currently use separate Eve sessions, and the web thread list is browser-local.
 
 To refresh Career Identity from a logged-in browser profile:
 
@@ -129,7 +130,7 @@ Port may vary — check the Eve dev server URL. Inspect the session stream for t
 ## Deploy + local capture sync (Phase 5)
 
 ```bash
-# Hosted agent (Vercel) — use Turso/libSQL for DATABASE_URL
+# Hosted agent (Vercel) — Neon injects DATABASE_URL
 pnpm build
 vercel deploy
 
@@ -147,6 +148,9 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | --- | --- |
 | `pnpm dev` | Next.js chat UI + Eve agent (HMR) |
 | `pnpm dev:tui` | Eve HMR + terminal UI |
+| `pnpm db:generate` | Generate a migration after editing the Drizzle schema |
+| `pnpm db:migrate` | Apply committed migrations using the direct Neon URL |
+| `pnpm test:database` | Verify two-member Postgres data isolation |
 | `pnpm seed` | Seed fake dossiers + raw items |
 | `pnpm capture` / `capture:dry` | Playwright feed capture |
 | `pnpm capture:profile` | Playwright LinkedIn *own profile* → Career Identity |
@@ -156,4 +160,4 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
 ## Prototype persistence warning
 
-This implementation is optimized for one local user. It stores web threads in `localStorage`, profile/messaging state in one Markdown file, and may use ephemeral `/tmp` files on Vercel. Do not expose it to real members or sensitive inbox data. The migration begins with GS-001 in `docs/tickets/`.
+The database foundation is multi-member and persistent, but the current app still stores web threads in `localStorage` and profile/messaging state in one Markdown file. Do not expose those prototype surfaces to real members or sensitive inbox data. Continue with GS-002 in `docs/tickets/`.

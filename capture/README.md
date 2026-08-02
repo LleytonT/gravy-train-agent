@@ -63,11 +63,11 @@ tsx capture/run-capture.ts [--dry-run] [--source=x|linkedin|all] [--headed]
 
 ## Environment
 
-Create `.env` at the repo root (loaded automatically):
+Create `.env.local` at the repo root (loaded before `.env`):
 
 ```env
-# Optional: local SQLite/Turso DB via agent repo
-DATABASE_URL=file:./data/gravy-scout.db
+# Required for local database writes; pull from the linked Vercel project.
+DATABASE_URL=postgresql://...
 
 # Optional: remote sync after local write
 CAPTURE_SYNC_URL=https://your-app.example/api/capture/sync

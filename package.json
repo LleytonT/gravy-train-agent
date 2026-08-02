@@ -14,7 +14,10 @@
     "start:eve": "eve start",
     "info": "eve info",
     "seed": "tsx scripts/seed.ts",
-    "db:ensure": "tsx -e \"import { ensureSchema } from './agent/lib/db/client.ts'; await ensureSchema(); console.log('ok')\"",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:ensure": "pnpm db:migrate",
+    "test:database": "tsx scripts/smoke-database.ts",
     "capture": "tsx capture/run-capture.ts",
     "capture:dry": "tsx capture/run-capture.ts --dry-run",
     "capture:x": "tsx capture/run-capture.ts --source=x",
@@ -25,7 +28,7 @@
     "test:scoring": "tsx scripts/smoke-scoring.ts"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.4",
+    "@neondatabase/serverless": "^1.1.0",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",
@@ -81,8 +84,7 @@
       "workflow"
     ],
     "onlyBuiltDependencies": [
-      "esbuild",
-      "@libsql/client"
+      "esbuild"
     ],
     "ignoredBuiltDependencies": [
       "@mongodb-js/zstd",

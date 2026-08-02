@@ -1,5 +1,7 @@
 # GS-001 — Production data foundation
 
+Status: implemented.
+
 ## Goal
 
 Replace ephemeral SQLite/libSQL state with a migration-managed Neon Postgres foundation that can safely hold multiple members.
@@ -30,3 +32,9 @@ Expose one database module for application and agent modules. Callers must not k
 ## Not in scope
 
 Authentication provider wiring, Telegram linking, ingestion, or visual changes.
+
+## Implementation notes
+
+- The Vercel Marketplace resource is documented in `docs/database.md`.
+- Existing scoring/capture tables remain as transition tables so the current Eve tools continue to work.
+- Legacy opportunities may temporarily have no `member_id`; GS-002 must make member context mandatory before production member traffic.

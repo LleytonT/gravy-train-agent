@@ -1,9 +1,10 @@
 #!/usr/bin/env npx tsx
 /**
- * Seed SQLite with fake feed items + dossiers + personalized role/outreach data.
+ * Explicitly seed development with fake feed items, dossiers, and role data.
+ * This script is never called automatically by the application.
  */
 import { config } from "dotenv";
-config();
+config({ path: [".env.local", ".env"] });
 
 import { ensureSchema } from "../agent/lib/db/client.js";
 import { repo } from "../agent/lib/db/repo.js";
