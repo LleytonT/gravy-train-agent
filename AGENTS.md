@@ -16,3 +16,14 @@ Non-obvious caveats:
 - **`AI_GATEWAY_API_KEY` is required for any LLM work** (chat sessions, nightly classification, dossier synthesis, ping drafting). Without it the agent server still boots and processes requests, but model calls return `GatewayAuthenticationError` (401). The deterministic core — opportunity **scoring** (`agent/lib/scoring.ts`), **role personalization** (`agent/lib/personalize.ts`), and the DB/dossier layer — works fully without a key (`pnpm test:scoring`, `pnpm seed`, `tsx scripts/verify-dossier.ts`). Add the key to `.env` (copy from `.env.example`) to exercise the full pipeline.
 - The dev server picks its own port and prints it (e.g. `http://127.0.0.1:2000/`); it is **not** always 3000. Session API: `POST /eve/v1/session` (body `{"message":"..."}`), stream via `GET /eve/v1/session/:sessionId/stream`.
 - Twilio WhatsApp and the capture-sync endpoint fail closed / return 503 when their env vars are unset — expected in local dev.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` (`lleytont/gravy-train-agent`). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.
+
