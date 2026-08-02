@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { getDb } from "./client.js";
 import {
@@ -242,6 +242,7 @@ export const repo = {
   },
 
   async saveSignal(input: {
+    memberId?: string | null;
     companyId: string;
     type: string;
     direction: Signal["direction"];
@@ -259,6 +260,7 @@ export const repo = {
       .insert(signals)
       .values({
         id: randomUUID(),
+        memberId: input.memberId ?? null,
         companyId: input.companyId,
         type: input.type,
         direction: input.direction,
@@ -276,13 +278,19 @@ export const repo = {
 
   async getSignalsForCompany(
     companyId: string,
-    options?: { includeDecayed?: boolean },
+    options?: { includeDecayed?: boolean; memberId?: string },
   ): Promise<Signal[] | SignalWithDecay[]> {
     const db = getDb();
+    const visibility = options?.memberId
+      ? or(
+          isNull(signals.memberId),
+          eq(signals.memberId, options.memberId),
+        )
+      : isNull(signals.memberId);
     const rows = await db
       .select()
       .from(signals)
-      .where(eq(signals.companyId, companyId))
+      .where(and(eq(signals.companyId, companyId), visibility))
       .orderBy(desc(signals.observedAt));
 
     if (!options?.includeDecayed) {
@@ -571,6 +579,7 @@ export const repo = {
   },
 
   async createOpportunity(input: {
+    memberId?: string | null;
     companyId: string;
     headline: string;
     score: number;
@@ -584,6 +593,7 @@ export const repo = {
       .insert(opportunities)
       .values({
         id: randomUUID(),
+        memberId: input.memberId ?? null,
         companyId: input.companyId,
         headline: input.headline,
         score: input.score,
@@ -598,6 +608,7 @@ export const repo = {
   },
 
   async listOpportunities(options?: {
+    memberId?: string;
     status?: OpportunityStatus;
     companyId?: string;
     limit?: number;
@@ -608,8 +619,14 @@ export const repo = {
     if (options?.status) {
       conditions.push(eq(opportunities.status, options.status));
     }
+    if (options?.memberId) {
+      conditions.push(eq(opportunities.memberId, options.memberId));
+    }
     if (options?.companyId) {
       conditions.push(eq(opportunities.companyId, options.companyId));
+    }
+    if (!options?.memberId) {
+      conditions.push(isNull(opportunities.memberId));
     }
 
     const query = db.select().from(opportunities);
@@ -660,6 +677,7 @@ export const repo = {
   async getRecentPingForCompany(
     companyId: string,
     withinHours = 48,
+    memberId?: string,
   ): Promise<Opportunity | undefined> {
     const db = getDb();
     const cutoff = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
@@ -670,6 +688,9 @@ export const repo = {
       .where(
         and(
           eq(opportunities.companyId, companyId),
+          memberId
+            ? eq(opportunities.memberId, memberId)
+            : isNull(opportunities.memberId),
           or(
             eq(opportunities.status, "pinged"),
             eq(opportunities.status, "discussed"),

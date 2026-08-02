@@ -32,7 +32,6 @@ import {
   type CareerIdentity,
 } from "./role-affinity.js";
 import { scoreCompany } from "./scoring.js";
-import { ensureSeedData } from "./seed-bootstrap.js";
 
 export type { OnboardingInput, OnboardingMatch } from "./onboarding-types.js";
 
@@ -120,7 +119,6 @@ export async function completeOnboarding(
   input: OnboardingInput,
 ): Promise<OnboardingResult> {
   await ensureSchema();
-  await ensureSeedData();
 
   const roleFamily = detectRoleFamily(input.currentTitle);
   const geographyHints = extractGeographyHints(

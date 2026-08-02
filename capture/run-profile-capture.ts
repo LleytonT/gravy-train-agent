@@ -15,7 +15,12 @@ import { captureLinkedInProfile } from "./linkedin-profile.js";
 import { CaptureAbortError } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-config({ path: path.join(__dirname, "..", ".env") });
+config({
+  path: [
+    path.join(__dirname, "..", ".env.local"),
+    path.join(__dirname, "..", ".env"),
+  ],
+});
 
 interface CliOptions {
   dryRun: boolean;
