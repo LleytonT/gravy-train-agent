@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@clerk/nextjs";
 import type { HandleMessageStreamEvent, SessionState } from "eve/client";
 import { useEveAgent } from "eve/react";
 import { useEffect, useRef } from "react";
@@ -47,9 +48,19 @@ export function ChatPanel({
   autoKickoffMessage,
   onKickoffSent,
 }: ChatPanelProps) {
+  const { getToken, isSignedIn } = useAuth();
   const agent = useEveAgent({
     initialEvents: initialEvents ?? [],
     initialSession,
+    auth: {
+      bearer: async () => {
+        const token = await getToken();
+        if (!token) {
+          throw new Error("Sign in required to chat with Gravy Scout");
+        }
+        return token;
+      },
+    },
     onFinish(snapshot) {
       onPersist({
         events: snapshot.events,
@@ -98,6 +109,9 @@ export function ChatPanel({
   ]);
 
   async function sendMessage(message: string) {
+    if (!isSignedIn) {
+      throw new Error("Sign in required to chat with Gravy Scout");
+    }
     if (messages.length === 0) onTitleSeed(message);
     await agent.send({ message });
   }

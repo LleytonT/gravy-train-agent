@@ -49,7 +49,7 @@ pnpm capture:profile               # thereafter
 
 Or tell the agent your title/company/location in chat — it calls `ingest_linkedin_profile`.
 
-Browse `/how-it-works` for the nightly workflow diagram. Browser chat is open via `none()` in `agent/channels/eve.ts`. Swap that for real auth before sharing sensitive data.
+Browse `/how-it-works` for the nightly workflow diagram (public). Chat, onboarding, and Eve HTTP require Clerk sign-in. See `docs/auth.md`.
 
 ## Project layout (Eve conventions)
 
@@ -151,6 +151,7 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm db:generate` | Generate a migration after editing the Drizzle schema |
 | `pnpm db:migrate` | Apply committed migrations using the direct Neon URL |
 | `pnpm test:database` | Verify two-member Postgres data isolation |
+| `pnpm test:auth` | Verify Clerk/Eve auth wiring and identity upserts |
 | `pnpm seed` | Seed fake dossiers + raw items |
 | `pnpm capture` / `capture:dry` | Playwright feed capture |
 | `pnpm capture:profile` | Playwright LinkedIn *own profile* → Career Identity |
@@ -160,4 +161,4 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
 ## Prototype persistence warning
 
-The database foundation is multi-member and persistent, but the current app still stores web threads in `localStorage` and profile/messaging state in one Markdown file. Do not expose those prototype surfaces to real members or sensitive inbox data. Continue with GS-002 in `docs/tickets/`.
+Web and Eve browser access require Clerk. Threads still live in `localStorage` and much of the career profile still mirrors into Markdown until GS-003/GS-004. Continue with those tickets before treating the product as multi-surface complete.

@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { ensureSchema } from "../lib/db/client.js";
+import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 
 export default defineTool({
@@ -12,12 +13,15 @@ export default defineTool({
       .optional(),
     limit: z.number().int().min(1).max(50).optional(),
   }),
-  async execute({ status, limit }) {
+  async execute({ status, limit }, ctx) {
     await ensureSchema();
+    const { memberId } = requireMemberCaller(ctx);
     const rows = await repo.listOpportunities({
+      memberId,
+      includeShared: true,
       status,
       limit: limit ?? 20,
     });
-    return { count: rows.length, opportunities: rows };
+    return { count: rows.length, opportunities: rows, memberId };
   },
 });
