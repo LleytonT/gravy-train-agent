@@ -1,10 +1,17 @@
 # Gravy Scout
 
-Personal GTM opportunity agent for APAC tech sales. Built on [Eve](https://eve.dev) (Vercel's filesystem-first agent framework).
+Personalized opportunity-intelligence agent built on [Eve](https://eve.dev), Vercel's filesystem-first agent framework.
 
-Connect your LinkedIn profile → Gravy Scout maps your role onto gravy-train companies (e.g. Sales Engineer at Vercel AU → Field / Deployment / Sales Engineer seats at Decagon, Sierra, Cursor, Fireworks) and names who to reach out to (hiring manager, peer in seat, adjacent).
+The repository currently contains a single-user prototype for APAC tech-sales discovery. It demonstrates deterministic company scoring, role personalization, dossiers, web chat, Telegram delivery, and local LinkedIn/X capture. It does **not** yet provide multi-user persistence or genuinely synchronized web/Telegram conversations.
 
-Every night it classifies what you missed on LinkedIn/X, maintains company dossiers, and pings **Telegram** when a real opportunity appears. You chat back (web or Telegram) to correct preferences — those updates persist.
+The target product learns a member's background and goals, ingests job-board alerts through email, researches public expansion and hiring evidence, and surfaces advertised, likely, and non-obvious opportunities with citations. Start with:
+
+1. [`CONTEXT.md`](./CONTEXT.md) — canonical domain language
+2. [`docs/specs/gravy-scout-v1.md`](./docs/specs/gravy-scout-v1.md) — product specification
+3. [`docs/architecture/target-architecture.md`](./docs/architecture/target-architecture.md) — selected architecture and migration rationale
+4. [`docs/tickets/README.md`](./docs/tickets/README.md) — dependency-ordered agent work
+
+The remaining sections document how to run and inspect the current prototype while it is migrated.
 
 ## Stack
 
@@ -13,7 +20,7 @@ Every night it classifies what you missed on LinkedIn/X, maintains company dossi
 | Agent | Eve (`agent/` filesystem layout) |
 | Web UI | Next.js + `useEveAgent` (same-origin `/eve/v1/*` via `withEve`) |
 | Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
-| DB | SQLite via Drizzle + libSQL (Turso-ready `DATABASE_URL`) |
+| DB | Current: SQLite/libSQL prototype · Target: Neon Postgres + Drizzle migrations |
 | Capture | Playwright, your logged-in browser profile (read-only) |
 | Messaging | **Telegram** (primary) · Twilio WhatsApp optional fallback |
 
@@ -30,7 +37,7 @@ pnpm dev           # Next.js chat UI + Eve agent (http://localhost:3000)
 pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Open the web app — first visit runs a short setup (role → **link Telegram** with consent → matches), then auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, matches still work from seed data; agent chat needs the key.
+Open the web app — first visit runs the prototype setup (role → optional Telegram details → matches), then auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, matches still work from seed data; agent chat needs the key. Telegram and web currently use separate Eve sessions, and the web thread list is browser-local.
 
 To refresh Career Identity from a logged-in browser profile:
 
@@ -147,6 +154,6 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm test:scoring` | Smoke test scoring + role personalization |
 | `pnpm exec tsx scripts/verify-dossier.ts` | Confirm seed dossiers |
 
-## Single-user note
+## Prototype persistence warning
 
-Optimized for one user and near-zero cost. DB sits behind `agent/lib/db/repo.ts` so Postgres/Turso can replace the file later without rewriting tools.
+This implementation is optimized for one local user. It stores web threads in `localStorage`, profile/messaging state in one Markdown file, and may use ephemeral `/tmp` files on Vercel. Do not expose it to real members or sensitive inbox data. The migration begins with GS-001 in `docs/tickets/`.
