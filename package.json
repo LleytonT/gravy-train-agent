@@ -21,6 +21,7 @@
     "test:auth": "tsx scripts/smoke-auth.ts",
     "test:career-profile": "tsx scripts/smoke-career-profile.ts",
     "test:conversation": "tsx scripts/smoke-conversation.ts",
+    "test:telegram-link": "tsx scripts/smoke-telegram-link.ts",
     "capture": "tsx capture/run-capture.ts",
     "capture:dry": "tsx capture/run-capture.ts --dry-run",
     "capture:x": "tsx capture/run-capture.ts --source=x",

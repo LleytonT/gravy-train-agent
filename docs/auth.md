@@ -22,9 +22,10 @@ Required variables:
 1. `proxy.ts` runs `clerkMiddleware` and calls `auth.protect()` on every non-public route.
 2. Public routes: `/how-it-works`, `/sign-in`, `/sign-up`, `/eve/v1/health`, `/api/messaging-config`.
 3. Protected Next route handlers call `requireAuthenticatedMember()` (`lib/auth/member.ts`), which upserts `members.external_auth_id = Clerk userId`.
-4. The web chat client sends a Clerk session JWT as `Authorization: Bearer …` to Eve.
-5. `agent/channels/eve.ts` walks auth as `[clerkMemberAuth(), vercelOidc(), localDevMemberAuth()]` — anonymous `none()` is removed.
-6. Eve tools read `ctx.session.auth.current.attributes.memberId` through `requireMemberCaller()`. Client-supplied member IDs are ignored.
+4. Telegram linking uses authenticated `POST /api/telegram/link` (see `docs/telegram-link.md`); Eve's Telegram webhook remains verified by `TELEGRAM_WEBHOOK_SECRET_TOKEN`.
+5. The web chat client sends a Clerk session JWT as `Authorization: Bearer …` to Eve.
+6. `agent/channels/eve.ts` walks auth as `[clerkMemberAuth(), vercelOidc(), localDevMemberAuth()]` — anonymous `none()` is removed.
+7. Eve tools read `ctx.session.auth.current.attributes.memberId` through `requireMemberCaller()`. Client-supplied member IDs are ignored.
 
 ## Local Eve development
 

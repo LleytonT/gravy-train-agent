@@ -32,6 +32,13 @@ Callers pass the verified internal `memberId` from the identity module. Client-s
 
 Durable messages are the read model after reload. Clearing browser storage does not delete conversation history.
 
+## Telegram flow
+
+1. Member links via a one-time token (`docs/telegram-link.md`).
+2. Inbound private messages resolve Telegram user ID → `memberId`, then `getOrCreateActiveConversation` + `beginSurfaceTurn` with `idempotencyKey = telegram:msg:<messageId>`.
+3. Eve runs the surface session; `message.completed` calls `completeSurfaceTurn` once and posts the reply.
+4. Webhook retries reuse the same idempotency key and do not duplicate timeline rows.
+
 ## Verification
 
 ```bash
