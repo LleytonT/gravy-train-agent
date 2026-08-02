@@ -49,6 +49,7 @@ const CONCURRENT_SIGNAL_TYPES = new Set([
   "talent_flow_strong_org",
   "expansion_signal",
   "first_apac_gtm_job",
+  "job_alert_listing",
   "people_watchlist_job_change",
   "people_watchlist_move",
 ]);
@@ -65,6 +66,7 @@ const IMMEDIATE_LEADING_TYPES = new Set([
   "apac_sales_leadership_hire",
   "regional_leadership_hire",
   "first_apac_gtm_job",
+  "job_alert_listing",
   "people_watchlist_job_change",
   "people_watchlist_move",
 ]);

@@ -50,6 +50,13 @@
       "when": 1785645278091,
       "tag": "0006_inbound_quarantine",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785645759718,
+      "tag": "0007_purple_mole_man",
+      "breakpoints": true
     }
   ]
 }

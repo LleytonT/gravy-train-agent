@@ -5,7 +5,7 @@ import {
   type NeonHttpDatabase,
 } from "drizzle-orm/neon-http";
 
-import { schema, sourceItems, type Schema } from "./schema.js";
+import { opportunities, schema, sourceItems, type Schema } from "./schema.js";
 
 export type Database = NeonHttpDatabase<Schema> & {
   $client: NeonQueryFunction<false, false>;
@@ -68,6 +68,11 @@ export async function ensureSchema(): Promise<void> {
     if (inbound.rows[0]?.tableName !== "inbound_quarantine") {
       throw new Error("inbound quarantine migration is missing");
     }
+    // GS-007 scoring provenance columns
+    await db
+      .select({ scoreVersion: opportunities.scoreVersion })
+      .from(opportunities)
+      .limit(0);
   } catch (error) {
     throw new Error(
       "Database schema is unavailable or out of date. Run `pnpm db:migrate` before serving traffic.",
