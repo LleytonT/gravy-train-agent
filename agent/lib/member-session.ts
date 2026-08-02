@@ -7,7 +7,12 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { SignJWT, jwtVerify } from "jose";
 
-export { MEMBER_SESSION_COOKIE, MEMBER_SESSION_TTL_SECONDS } from "./member-session-constants.js";
+import { MEMBER_SESSION_TTL_SECONDS } from "./member-session-constants.js";
+
+export {
+  MEMBER_SESSION_COOKIE,
+  MEMBER_SESSION_TTL_SECONDS,
+} from "./member-session-constants.js";
 
 export type MemberSessionClaims = {
   memberId: string;
