@@ -5,7 +5,14 @@
  * be kept briefly for debugging parse failures, then must be stripped.
  *
  * Override with INBOUND_FULL_BODY_RETENTION_HOURS (default 168 = 7 days).
+ * Call `purgeExpiredFullBodies()` from inbound processing (and smokes) to
+ * enforce the TTL — write-time retention alone is not enough.
  */
+
+import { eq } from "drizzle-orm";
+
+import { getDb } from "../db/client.js";
+import { inboundQuarantine, sourceItems } from "../db/schema.js";
 
 export const DEFAULT_FULL_BODY_RETENTION_HOURS = 168;
 
@@ -60,4 +67,78 @@ export function clipExcerpt(text: string, max = 500): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length <= max) return normalized;
   return `${normalized.slice(0, max - 1)}…`;
+}
+
+export type PurgeExpiredFullBodiesResult = {
+  sourceItemsPurged: number;
+  quarantinePurged: number;
+};
+
+function payloadHasFullBody(payload: Record<string, unknown>): boolean {
+  return (
+    typeof payload.fullBody === "string" || typeof payload.fullHtml === "string"
+  );
+}
+
+function bodyRetentionExpired(
+  payload: Record<string, unknown>,
+  now: Date,
+): boolean {
+  if (!payloadHasFullBody(payload)) return false;
+  const until = payload.fullBodyRetainedUntil;
+  if (typeof until !== "string" || !until.trim()) return true;
+  return !shouldRetainFullBody(until, now);
+}
+
+function stripFullBodies(
+  payload: Record<string, unknown>,
+  now: Date,
+): Record<string, unknown> {
+  const next = { ...payload };
+  delete next.fullBody;
+  delete next.fullHtml;
+  next.fullBodyPurgedAt = now.toISOString();
+  return next;
+}
+
+/**
+ * Strip expired `fullBody` / `fullHtml` from source items and quarantine rows.
+ * Excerpts and listing metadata remain. Idempotent. Scans a bounded batch so
+ * inbound webhooks stay cheap.
+ */
+export async function purgeExpiredFullBodies(
+  now: Date = new Date(),
+  batchSize = 100,
+): Promise<PurgeExpiredFullBodiesResult> {
+  const db = getDb();
+  let sourceItemsPurged = 0;
+  let quarantinePurged = 0;
+
+  const items = await db
+    .select({ id: sourceItems.id, payload: sourceItems.payload })
+    .from(sourceItems)
+    .limit(batchSize);
+  for (const item of items) {
+    if (!bodyRetentionExpired(item.payload, now)) continue;
+    await db
+      .update(sourceItems)
+      .set({ payload: stripFullBodies(item.payload, now) })
+      .where(eq(sourceItems.id, item.id));
+    sourceItemsPurged += 1;
+  }
+
+  const quarantines = await db
+    .select({ id: inboundQuarantine.id, payload: inboundQuarantine.payload })
+    .from(inboundQuarantine)
+    .limit(batchSize);
+  for (const row of quarantines) {
+    if (!bodyRetentionExpired(row.payload, now)) continue;
+    await db
+      .update(inboundQuarantine)
+      .set({ payload: stripFullBodies(row.payload, now) })
+      .where(eq(inboundQuarantine.id, row.id));
+    quarantinePurged += 1;
+  }
+
+  return { sourceItemsPurged, quarantinePurged };
 }

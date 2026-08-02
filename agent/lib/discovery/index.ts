@@ -1,6 +1,7 @@
 export { runDiscovery } from "./run.js";
 export { analyzeFit, hardConstraintViolation } from "./analysts/fit.js";
 export { extractJobAlertFromSourceItem } from "./analysts/job-alert.js";
+export { deriveSecondaryCandidatesFromResearch } from "./analysts/company-research.js";
 export { createLimitTracker } from "./limits.js";
 export {
   CANDIDATE_ROLE_KINDS,

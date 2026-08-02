@@ -42,4 +42,5 @@ Full Gmail access, sending email as the member, or mailbox search.
 - Module seam: `agent/lib/ingestion/` (`SourceItemInput` → `ingestSourceItems`).
 - Webhook: `POST /api/inbound/resend` (public; Svix-verified).
 - Profile: `/profile` + `GET|POST|DELETE /api/inbound/alias`.
+- Migration: `drizzle/0007_inbound_quarantine.sql` (after GS-005 channel-link tokens).
 - Verify: `pnpm test:inbound`.

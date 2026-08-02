@@ -43,4 +43,5 @@ Autonomous outreach, application submission, or unsupported social scraping.
 - Docs: `docs/discovery.md`
 - Subagents: `job_alert_analyst`, `company_researcher`, `fit_analyst`
 - Schedule: handler-form `nightly_scout` (no free-form markdown)
+- Migration: `drizzle/0008_opportunity_provenance.sql`
 - Verify: `pnpm test:discovery` + `pnpm test:scoring`

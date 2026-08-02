@@ -15,6 +15,7 @@ config({ path: [".env.local", ".env"] });
 const {
   analyzeFit,
   extractJobAlertFromSourceItem,
+  deriveSecondaryCandidatesFromResearch,
   hardConstraintViolation,
   runDiscovery,
   SCORE_VERSION,
@@ -70,11 +71,45 @@ async function main() {
   });
   assert(extracted?.kind === "advertised", "job alert → advertised");
 
+  const secondary = deriveSecondaryCandidatesFromResearch({
+    companyName: "Decagon",
+    summary: "Quiet week",
+    snippets: [
+      {
+        title: "Chatter",
+        snippet:
+          "Rumored they are hiring a Forward Deployed Engineer in Melbourne",
+      },
+    ],
+    advertisedTitle: "Sales Engineer",
+  });
+  assert(
+    secondary.some((c) => c.kind === "rumored"),
+    "research rumor → rumored kind",
+  );
+  assert(
+    deriveSecondaryCandidatesFromResearch({
+      companyName: "Sierra",
+      summary: "Sierra is hiring a Deployment Engineer in Sydney",
+      snippets: [],
+      advertisedTitle: "Other",
+    }).some((c) => c.kind === "inferred"),
+    "research hiring → inferred kind",
+  );
+
   assert(
     hardConstraintViolation("San Francisco, CA", {
       locations: ["Sydney", "Melbourne"],
     }) !== null,
     "hard location constraint fires",
+  );
+  assert(
+    hardConstraintViolation({
+      roleLocation: "Sydney",
+      compensation: 80_000,
+      constraints: { compensationMin: 120_000, compensationCurrency: "AUD" },
+    }) !== null,
+    "hard compensation constraint fires when listing pay is known",
   );
 
   const excluded = analyzeFit({
@@ -107,6 +142,14 @@ async function main() {
     limitThrown = true;
   }
   assert(limitThrown, "web search over-limit is observable");
+  tracker.recordModelCall();
+  let modelLimitThrown = false;
+  try {
+    tracker.recordModelCall();
+  } catch {
+    modelLimitThrown = true;
+  }
+  assert(modelLimitThrown, "model call over-limit is observable");
 
   const schedule = readFileSync(resolve("agent/schedules/nightly_scout.ts"), "utf8");
   assert(schedule.includes("runDiscovery"), "schedule calls runDiscovery");
@@ -176,6 +219,8 @@ async function main() {
           board: "linkedin",
           company: companyName,
           location: "Sydney",
+          researchNotes:
+            "Rumored they are hiring a Forward Deployed Engineer in Melbourne",
         },
         receipt: {
           provider: "smoke",
@@ -232,6 +277,7 @@ async function main() {
       .from(candidateRoles)
       .where(eq(candidateRoles.memberId, member.id));
     assert(roles.some((r) => r.kind === "advertised"), "advertised role labeled");
+    assert(roles.some((r) => r.kind === "rumored"), "rumored role labeled");
     companyIds.push(...new Set(roles.map((r) => r.companyId)));
 
     const opps = await db
@@ -304,10 +350,9 @@ async function main() {
       memberId: member.id,
       skipWebSearch: true,
     });
-    assert(
-      noop.status === "noop" || noop.counts.digestsSkipped >= 0,
-      "empty run is noop-friendly",
-    );
+    assert(noop.status === "noop", "empty run status is noop");
+    assert(noop.counts.digestsDelivered === 0, "noop delivers no digest");
+    assert(noop.counts.opportunitiesUpserted === 0, "noop upserts no opportunities");
 
     console.log("smoke-discovery: ok", {
       first: first.counts,

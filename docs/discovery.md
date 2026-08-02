@@ -28,11 +28,20 @@ Opportunities store `score_version`, `score_inputs`, and an evidence-citing `rat
 
 ## Candidate role kinds
 
-`advertised` · `rumored` · `inferred` — stored on `candidate_roles.kind`. Inbound job alerts produce `advertised`.
+`advertised` · `rumored` · `inferred` — stored on `candidate_roles.kind`.
+
+- Inbound job alerts → `advertised`
+- Company research hiring language → `inferred`
+- Rumor / “heard they’re hiring” language → `rumored`
 
 ## Limits
 
-Default: 50 source items, 5 web searches, 20 model calls per run. Exceeding a limit throws an observable error from `LimitTracker`.
+Default: 50 source items, 5 web searches, 20 model calls per run.
+
+- `maxSourceItems` is enforced as a SQL `LIMIT` on the unprocessed queue.
+- Exceeding `maxWebSearches` or `maxModelCalls` throws an observable error from `LimitTracker` (analysts record model-call budget even on the deterministic path).
+
+Failed runs leave source items unprocessed so a reclaim/retry can finish opportunities and digests.
 
 ## Verification
 

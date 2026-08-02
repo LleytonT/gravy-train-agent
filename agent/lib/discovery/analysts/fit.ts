@@ -15,6 +15,9 @@ export type FitInput = {
   signalSummaries: string[];
   constraints: ProfileConstraints | undefined;
   targetTitles?: string[];
+  /** Annual compensation when known on the candidate role / listing. */
+  compensation?: number | null;
+  compensationCurrency?: string | null;
 };
 
 export type FitResult =
@@ -32,10 +35,12 @@ export type FitResult =
 
 export function analyzeFit(input: FitInput): FitResult {
   const cited = [...new Set(input.signalIds)].slice(0, 8);
-  const constraintHit = hardConstraintViolation(
-    input.roleLocation,
-    input.constraints,
-  );
+  const constraintHit = hardConstraintViolation({
+    roleLocation: input.roleLocation,
+    compensation: input.compensation,
+    compensationCurrency: input.compensationCurrency,
+    constraints: input.constraints,
+  });
   if (constraintHit) {
     return {
       eligible: false,
@@ -79,12 +84,35 @@ export function analyzeFit(input: FitInput): FitResult {
 }
 
 export function hardConstraintViolation(
-  roleLocation: string | null,
-  constraints: ProfileConstraints | undefined,
+  roleLocationOrInput:
+    | string
+    | null
+    | {
+        roleLocation: string | null;
+        compensation?: number | null;
+        compensationCurrency?: string | null;
+        constraints: ProfileConstraints | undefined;
+      },
+  constraintsMaybe?: ProfileConstraints | undefined,
 ): string | null {
+  // Back-compat: hardConstraintViolation(location, constraints)
+  const input =
+    typeof roleLocationOrInput === "object" &&
+    roleLocationOrInput !== null &&
+    "constraints" in roleLocationOrInput
+      ? roleLocationOrInput
+      : {
+          roleLocation: roleLocationOrInput as string | null,
+          compensation: null,
+          compensationCurrency: null,
+          constraints: constraintsMaybe,
+        };
+
+  const constraints = input.constraints;
   if (!constraints) return null;
 
   const locations = constraints.locations?.map(normalize).filter(Boolean) ?? [];
+  const roleLocation = input.roleLocation;
   if (locations.length > 0 && roleLocation) {
     const role = normalize(roleLocation);
     const remoteRole = /\bremote\b/.test(role);
@@ -109,6 +137,21 @@ export function hardConstraintViolation(
     if (/\bremote\b/.test(role) && !/\bhybrid\b/.test(role)) {
       return "member requires onsite; role appears remote-only";
     }
+  }
+
+  const min = constraints.compensationMin;
+  if (
+    typeof min === "number" &&
+    Number.isFinite(min) &&
+    typeof input.compensation === "number" &&
+    Number.isFinite(input.compensation) &&
+    input.compensation < min
+  ) {
+    const currency =
+      constraints.compensationCurrency ??
+      input.compensationCurrency ??
+      "";
+    return `listed compensation ${input.compensation}${currency ? ` ${currency}` : ""} below hard minimum ${min}${currency ? ` ${currency}` : ""}`;
   }
 
   return null;

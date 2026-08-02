@@ -14,6 +14,9 @@ export type JobAlertExtraction = {
   board: string | null;
   confidence: number;
   excerpt: string;
+  /** Annual compensation when present on the listing payload (for hard gates). */
+  compensation?: number | null;
+  compensationCurrency?: string | null;
 };
 
 export function extractJobAlertFromSourceItem(item: {
@@ -40,6 +43,8 @@ export function extractJobAlertFromSourceItem(item: {
     (typeof item.payload.board === "string" && item.payload.board.trim()) ||
     null;
 
+  const compensation = readCompensation(item.payload);
+
   return {
     title,
     companyName,
@@ -49,7 +54,44 @@ export function extractJobAlertFromSourceItem(item: {
     board,
     confidence: item.canonicalUrl ? 0.9 : 0.7,
     excerpt: item.excerpt,
+    compensation: compensation?.amount ?? null,
+    compensationCurrency: compensation?.currency ?? null,
   };
+}
+
+function readCompensation(
+  payload: Record<string, unknown>,
+): { amount: number; currency: string | null } | null {
+  const raw =
+    payload.compensation ??
+    payload.compensationMin ??
+    payload.salary ??
+    payload.salaryMin;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return {
+      amount: raw,
+      currency:
+        typeof payload.compensationCurrency === "string"
+          ? payload.compensationCurrency
+          : typeof payload.currency === "string"
+            ? payload.currency
+            : null,
+    };
+  }
+  if (typeof raw === "string") {
+    const digits = raw.replace(/[^0-9.]/g, "");
+    const amount = Number.parseFloat(digits);
+    if (Number.isFinite(amount) && amount > 0) {
+      return {
+        amount,
+        currency:
+          typeof payload.compensationCurrency === "string"
+            ? payload.compensationCurrency
+            : null,
+      };
+    }
+  }
+  return null;
 }
 
 function inferCompanyFromExcerpt(excerpt: string): string | null {

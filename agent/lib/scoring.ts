@@ -187,6 +187,7 @@ function scoreTiming(positiveSignals: ScoringSignal[]): {
   }
 
   let score = 0;
+  const scoredIds = new Set<ScoringSignal>();
 
   for (const signal of leading) {
     const type = normalizeSignalType(signal.type);
@@ -199,6 +200,20 @@ function scoreTiming(positiveSignals: ScoringSignal[]): {
       score += clamp(weight * 0.5, 0.25, 1.25);
       rationale.push(`Supporting leading signal: ${signal.summary}`);
     }
+    scoredIds.add(signal);
+  }
+
+  // Concurrent / act-fast types (e.g. job_alert_listing) contribute timing even
+  // when they are not classic lead-time "leading" signals.
+  for (const signal of positiveSignals) {
+    if (scoredIds.has(signal) || !isPositive(signal)) continue;
+    const type = normalizeSignalType(signal.type);
+    if (!CONCURRENT_SIGNAL_TYPES.has(type) && !IMMEDIATE_LEADING_TYPES.has(type)) {
+      continue;
+    }
+    const weight = weightedStrength(signal);
+    score += clamp(weight * 0.85, 0.5, 2);
+    rationale.push(`Concurrent hiring signal: ${signal.summary}`);
   }
 
   const recentWindow = positiveSignals.filter(

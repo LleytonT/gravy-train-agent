@@ -13,10 +13,11 @@ import {
   opportunities,
   opportunityEvidence,
   signals,
+  sourceItems,
 } from "../db/schema.js";
 import { scoreCompany } from "../scoring.js";
 import { analyzeFit } from "./analysts/fit.js";
-import { SCORE_VERSION } from "./types.js";
+import { SCORE_VERSION, type LimitTracker } from "./types.js";
 
 export type OpportunityUpsertResult = {
   opportunityId: string;
@@ -40,38 +41,62 @@ function materialHash(input: {
     .slice(0, 32);
 }
 
+function readCompensationFromPayload(payload: Record<string, unknown> | null): {
+  amount: number | null;
+  currency: string | null;
+} {
+  if (!payload) return { amount: null, currency: null };
+  const raw =
+    payload.compensation ??
+    payload.compensationMin ??
+    payload.salary ??
+    payload.salaryMin;
+  const currency =
+    typeof payload.compensationCurrency === "string"
+      ? payload.compensationCurrency
+      : typeof payload.currency === "string"
+        ? payload.currency
+        : null;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return { amount: raw, currency };
+  }
+  if (typeof raw === "string") {
+    const amount = Number.parseFloat(raw.replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(amount) && amount > 0) {
+      return { amount, currency };
+    }
+  }
+  return { amount: null, currency };
+}
+
 export async function upsertOpportunitiesForMembers(input: {
   memberIds: string[];
-  /** Company ids touched in this run — used to scope candidates. */
+  /**
+   * Company ids touched in this run — required to scope candidates.
+   * Empty means "nothing to score" (never re-score the member's entire book).
+   */
   companyIds: string[];
+  tracker?: LimitTracker;
 }): Promise<OpportunityUpsertResult[]> {
   const results: OpportunityUpsertResult[] = [];
   if (input.memberIds.length === 0) return results;
+  if (input.companyIds.length === 0) return results;
 
   const db = getDb();
   for (const memberId of input.memberIds) {
     const snapshot = await getMemberContextSnapshot(memberId);
     const prefs = scoringPrefsFromSnapshot(snapshot);
 
-    const roleConditions = [
-      eq(candidateRoles.memberId, memberId),
-      eq(candidateRoles.status, "active"),
-    ];
-    const roles =
-      input.companyIds.length > 0
-        ? await db
-            .select()
-            .from(candidateRoles)
-            .where(
-              and(
-                ...roleConditions,
-                inArray(candidateRoles.companyId, input.companyIds),
-              ),
-            )
-        : await db
-            .select()
-            .from(candidateRoles)
-            .where(and(...roleConditions));
+    const roles = await db
+      .select()
+      .from(candidateRoles)
+      .where(
+        and(
+          eq(candidateRoles.memberId, memberId),
+          eq(candidateRoles.status, "active"),
+          inArray(candidateRoles.companyId, input.companyIds),
+        ),
+      );
 
     for (const role of roles) {
       const company = await repo.getCompanyById(role.companyId);
@@ -98,6 +123,20 @@ export async function upsertOpportunitiesForMembers(input: {
         companyName: company.name,
       });
 
+      let compensation: number | null = null;
+      let compensationCurrency: string | null = null;
+      if (role.sourceItemId) {
+        const [source] = await db
+          .select({ payload: sourceItems.payload })
+          .from(sourceItems)
+          .where(eq(sourceItems.id, role.sourceItemId))
+          .limit(1);
+        const parsed = readCompensationFromPayload(source?.payload ?? null);
+        compensation = parsed.amount;
+        compensationCurrency = parsed.currency;
+      }
+
+      input.tracker?.recordModelCall(); // fit_analyst
       const fit = analyzeFit({
         roleTitle: role.title,
         roleLocation: role.location,
@@ -107,6 +146,8 @@ export async function upsertOpportunitiesForMembers(input: {
         signalSummaries: usableSignals.map((s) => s.summary),
         constraints: snapshot.document.constraints,
         targetTitles: snapshot.document.goals?.targetTitles,
+        compensation,
+        compensationCurrency,
       });
 
       if (!fit.eligible) {

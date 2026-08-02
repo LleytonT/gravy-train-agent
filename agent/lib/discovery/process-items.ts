@@ -12,9 +12,12 @@ import {
   sourceItems,
 } from "../db/schema.js";
 import { extractJobAlertFromSourceItem } from "./analysts/job-alert.js";
-import { researchCompany } from "./analysts/company-research.js";
+import {
+  deriveSecondaryCandidatesFromResearch,
+  researchCompany,
+} from "./analysts/company-research.js";
 import { searchWeb } from "./web-search.js";
-import type { LimitTracker } from "./types.js";
+import type { CandidateRoleKind, LimitTracker } from "./types.js";
 
 export type ProcessedItemResult = {
   sourceItemId: string;
@@ -79,13 +82,78 @@ export async function loadUnprocessedSourceItems(input: {
     .limit(input.limit);
 }
 
+async function upsertCandidateRole(input: {
+  memberId: string;
+  companyId: string;
+  sourceItemId: string;
+  title: string;
+  location: string | null;
+  kind: CandidateRoleKind;
+  confidence: number;
+  canonicalUrl: string | null;
+  observedAt: Date | null;
+}): Promise<{ id: string; created: boolean }> {
+  const db = getDb();
+  const [existingRole] = await db
+    .select({ id: candidateRoles.id })
+    .from(candidateRoles)
+    .where(
+      and(
+        eq(candidateRoles.memberId, input.memberId),
+        eq(candidateRoles.companyId, input.companyId),
+        eq(candidateRoles.title, input.title),
+        eq(candidateRoles.kind, input.kind),
+        input.canonicalUrl
+          ? eq(candidateRoles.canonicalUrl, input.canonicalUrl)
+          : isNull(candidateRoles.canonicalUrl),
+      ),
+    )
+    .limit(1);
+
+  if (existingRole) {
+    await db
+      .update(candidateRoles)
+      .set({
+        location: input.location,
+        confidence: input.confidence,
+        sourceItemId: input.sourceItemId,
+        updatedAt: new Date(),
+      })
+      .where(eq(candidateRoles.id, existingRole.id));
+    return { id: existingRole.id, created: false };
+  }
+
+  const id = randomUUID();
+  await db.insert(candidateRoles).values({
+    id,
+    memberId: input.memberId,
+    companyId: input.companyId,
+    sourceItemId: input.sourceItemId,
+    title: input.title,
+    location: input.location,
+    kind: input.kind,
+    status: "active",
+    canonicalUrl: input.canonicalUrl,
+    confidence: input.confidence,
+    observedAt: input.observedAt ?? new Date(),
+  });
+  return { id, created: true };
+}
+
 export async function processSourceItem(input: {
   item: Awaited<ReturnType<typeof loadUnprocessedSourceItems>>[number];
   tracker: LimitTracker;
   skipWebSearch?: boolean;
+  /**
+   * When true, leave processedAt null so the orchestrator can mark after
+   * opportunities/digests succeed (failed-run resume).
+   */
+  deferProcessedMark?: boolean;
 }): Promise<ProcessedItemResult | null> {
+  input.tracker.recordModelCall(); // job_alert_analyst
   const extraction = extractJobAlertFromSourceItem(input.item);
   if (!extraction) {
+    // Unparseable items will never succeed on retry — mark immediately.
     await markProcessed(input.item.id);
     return {
       sourceItemId: input.item.id,
@@ -106,7 +174,7 @@ export async function processSourceItem(input: {
   });
   const companyId = company.id;
 
-  // Research (budgeted)
+  input.tracker.recordModelCall(); // company_researcher
   const research = await researchCompany({
     companyName: extraction.companyName,
     tracker: input.tracker,
@@ -182,54 +250,55 @@ export async function processSourceItem(input: {
   let candidateRoleId: string | null = null;
   let createdCandidate = false;
   if (input.item.memberId) {
-    const [existingRole] = await db
-      .select({ id: candidateRoles.id })
-      .from(candidateRoles)
-      .where(
-        and(
-          eq(candidateRoles.memberId, input.item.memberId),
-          eq(candidateRoles.companyId, companyId),
-          eq(candidateRoles.title, extraction.title),
-          eq(candidateRoles.kind, extraction.kind),
-          extraction.canonicalUrl
-            ? eq(candidateRoles.canonicalUrl, extraction.canonicalUrl)
-            : isNull(candidateRoles.canonicalUrl),
-        ),
-      )
-      .limit(1);
+    const advertised = await upsertCandidateRole({
+      memberId: input.item.memberId,
+      companyId,
+      sourceItemId: input.item.id,
+      title: extraction.title,
+      location: extraction.location,
+      kind: extraction.kind,
+      confidence: extraction.confidence,
+      canonicalUrl: extraction.canonicalUrl,
+      observedAt: input.item.observedAt,
+    });
+    candidateRoleId = advertised.id;
+    createdCandidate = advertised.created;
 
-    if (existingRole) {
-      candidateRoleId = existingRole.id;
-      await db
-        .update(candidateRoles)
-        .set({
-          location: extraction.location,
-          confidence: extraction.confidence,
-          sourceItemId: input.item.id,
-          updatedAt: new Date(),
-        })
-        .where(eq(candidateRoles.id, existingRole.id));
-    } else {
-      const id = randomUUID();
-      await db.insert(candidateRoles).values({
-        id,
+    const researchNotes =
+      typeof input.item.payload.researchNotes === "string"
+        ? input.item.payload.researchNotes
+        : "";
+    const secondary = deriveSecondaryCandidatesFromResearch({
+      companyName: extraction.companyName,
+      snippets: [
+        ...research.snippets,
+        ...(researchNotes
+          ? [{ title: "source_payload", snippet: researchNotes }]
+          : []),
+      ],
+      summary: research.summary,
+      advertisedTitle: extraction.title,
+    });
+
+    for (const extra of secondary) {
+      const upserted = await upsertCandidateRole({
         memberId: input.item.memberId,
         companyId,
         sourceItemId: input.item.id,
-        title: extraction.title,
-        location: extraction.location,
-        kind: extraction.kind,
-        status: "active",
-        canonicalUrl: extraction.canonicalUrl,
-        confidence: extraction.confidence,
-        observedAt: input.item.observedAt ?? new Date(),
+        title: extra.title,
+        location: extra.location,
+        kind: extra.kind,
+        confidence: extra.confidence,
+        canonicalUrl: null,
+        observedAt: input.item.observedAt,
       });
-      candidateRoleId = id;
-      createdCandidate = true;
+      if (upserted.created) createdCandidate = true;
     }
   }
 
-  await markProcessed(input.item.id);
+  if (!input.deferProcessedMark) {
+    await markProcessed(input.item.id);
+  }
 
   return {
     sourceItemId: input.item.id,

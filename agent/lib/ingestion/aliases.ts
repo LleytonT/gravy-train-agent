@@ -207,6 +207,30 @@ export async function findRecipientAmong(
   return null;
 }
 
+/**
+ * Addresses ever issued to this member (active or revoked). Used so Profile can
+ * show quarantine for mail that hit a revoked alias without re-attributing
+ * listings to the member.
+ */
+export async function listInboundAddressesForMember(
+  memberId: string,
+): Promise<string[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ address: connections.externalAccountId })
+    .from(connections)
+    .where(
+      and(
+        eq(connections.memberId, memberId),
+        eq(connections.provider, INBOUND_EMAIL_PROVIDER),
+      ),
+    );
+  return rows
+    .map((row) => row.address)
+    .filter((address): address is string => Boolean(address))
+    .map(normalizeEmailAddress);
+}
+
 export async function getInboundIngestionStatus(
   memberId: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -214,6 +238,7 @@ export async function getInboundIngestionStatus(
   const db = getDb();
   const alias = await getActiveInboundAlias(memberId);
   const domain = inboundDomain(env);
+  const addresses = await listInboundAddressesForMember(memberId);
 
   const [receiptStats] = await db
     .select({
@@ -229,13 +254,26 @@ export async function getInboundIngestionStatus(
       ),
     );
 
+  // Include quarantines attributed to the member OR addressed to any alias
+  // they have held (revoked aliases keep memberId null by design).
+  const quarantineWhere =
+    addresses.length > 0
+      ? sql`(
+          ${inboundQuarantine.memberId} = ${memberId}
+          OR lower(${inboundQuarantine.recipientAddress}) IN (${sql.join(
+            addresses.map((address) => sql`${address}`),
+            sql`, `,
+          )})
+        )`
+      : eq(inboundQuarantine.memberId, memberId);
+
   const [quarantineStats] = await db
     .select({
       count: sql<number>`count(*)::int`,
       lastAt: sql<Date | null>`max(${inboundQuarantine.createdAt})`,
     })
     .from(inboundQuarantine)
-    .where(eq(inboundQuarantine.memberId, memberId));
+    .where(quarantineWhere);
 
   const [lastQuarantine] = await db
     .select({
@@ -243,7 +281,7 @@ export async function getInboundIngestionStatus(
       createdAt: inboundQuarantine.createdAt,
     })
     .from(inboundQuarantine)
-    .where(eq(inboundQuarantine.memberId, memberId))
+    .where(quarantineWhere)
     .orderBy(desc(inboundQuarantine.createdAt))
     .limit(1);
 
