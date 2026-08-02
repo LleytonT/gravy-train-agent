@@ -7,8 +7,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { SignJWT, jwtVerify } from "jose";
 
-export const MEMBER_SESSION_COOKIE = "gs_member_session";
-export const MEMBER_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+export { MEMBER_SESSION_COOKIE, MEMBER_SESSION_TTL_SECONDS } from "./member-session-constants.js";
 
 export type MemberSessionClaims = {
   memberId: string;

@@ -6,12 +6,26 @@ const nextConfig: NextConfig = {
   // Agent libs use NodeNext-style `*.js` import specifiers that point at `.ts`
   // sources. Webpack needs extensionAlias so Next can bundle `/api/onboarding`.
   // (Turbopack in Next 16.2 lacks resolveExtensionAlias; use --webpack for build/dev.)
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.extensionAlias = {
       ...config.resolve.extensionAlias,
       ".js": [".ts", ".tsx", ".js"],
       ".mjs": [".mts", ".mjs"],
     };
+    
+    // Handle node:crypto and other node: imports for browser builds
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        crypto: false,
+        stream: false,
+        buffer: false,
+        'node:crypto': false,
+        'node:stream': false,
+        'node:buffer': false,
+      };
+    }
+    
     return config;
   },
 };

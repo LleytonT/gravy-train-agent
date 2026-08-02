@@ -1,6 +1,6 @@
 "use client";
 
-import { MEMBER_SESSION_COOKIE } from "@/agent/lib/member-session";
+import { MEMBER_SESSION_COOKIE } from "@/agent/lib/member-session-constants";
 
 /**
  * Read the httpOnly session cookie is impossible from JS — clients obtain a

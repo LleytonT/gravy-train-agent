@@ -314,6 +314,16 @@ export function ProgressiveOnboarding() {
               {busy ? <Spinner className="size-4" /> : null}
               See first matches
             </Button>
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                setMatches([]);
+                setStep("matches");
+              }}
+            >
+              Skip preview
+            </Button>
           </div>
         </section>
       ) : null}

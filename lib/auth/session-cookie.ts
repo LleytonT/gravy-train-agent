@@ -1,4 +1,7 @@
-import { MEMBER_SESSION_COOKIE, MEMBER_SESSION_TTL_SECONDS } from "@/agent/lib/member-session";
+import {
+  MEMBER_SESSION_COOKIE,
+  MEMBER_SESSION_TTL_SECONDS,
+} from "@/agent/lib/member-session-constants";
 
 export function memberSessionCookieOptions(maxAge = MEMBER_SESSION_TTL_SECONDS) {
   return {
