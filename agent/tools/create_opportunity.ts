@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { ensureSchema } from "../lib/db/client.js";
+import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 
 export default defineTool({
@@ -14,8 +15,9 @@ export default defineTool({
     pingTier: z.enum(["immediate", "digest"]),
     markPinged: z.boolean().optional().default(true),
   }),
-  async execute({ company, headline, score, pingTier, markPinged }) {
+  async execute({ company, headline, score, pingTier, markPinged }, ctx) {
     await ensureSchema();
+    const { memberId } = requireMemberCaller(ctx);
     const dossier = await repo.getCompanyDossier(company);
     if (!dossier) {
       return { created: false, error: `Company not found: ${company}` };
@@ -29,7 +31,11 @@ export default defineTool({
       };
     }
 
-    const recent = await repo.getRecentPingForCompany(dossier.company.id, 48);
+    const recent = await repo.getRecentPingForCompany(
+      dossier.company.id,
+      48,
+      memberId,
+    );
     if (recent) {
       return {
         created: false,
@@ -40,6 +46,7 @@ export default defineTool({
     }
 
     const opportunity = await repo.createOpportunity({
+      memberId,
       companyId: dossier.company.id,
       headline: `[${pingTier}] ${headline}`,
       score,
@@ -51,6 +58,7 @@ export default defineTool({
       created: true,
       opportunity: {
         id: opportunity.id,
+        memberId: opportunity.memberId,
         companyId: opportunity.companyId,
         companyName: dossier.company.name,
         headline: opportunity.headline,

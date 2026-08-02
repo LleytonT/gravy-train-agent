@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +34,18 @@ export function SiteHeader({ active = "chat" }: SiteHeaderProps) {
           >
             <Link href="/how-it-works">How it works</Link>
           </Button>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button size="sm" variant="default" className="ml-1">
+                Sign in
+              </Button>
+            </SignInButton>
+          </Show>
+          <Show when="signed-in">
+            <div className="ml-2 flex items-center">
+              <UserButton />
+            </div>
+          </Show>
         </nav>
       </div>
     </header>

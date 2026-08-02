@@ -11,6 +11,7 @@ The following project-local skills from `mattpocock/skills` are committed under 
 - `to-spec` — turns an established conversation into a product specification.
 - `to-tickets` — decomposes a specification into dependency-aware tracer bullets.
 - `handoff` — creates a compact continuation document for a fresh agent.
+- `clerk-setup`, `clerk-nextjs-patterns`, `clerk-testing`, `clerk-backend-api`, `clerk-webhooks`, `clerk-orgs` — Clerk Marketplace guidance used for GS-002.
 
 Use `to-spec` only after reading `CONTEXT.md` and current ADRs. Use `to-tickets` only when the requested capability is not already represented under `docs/tickets/`.
 

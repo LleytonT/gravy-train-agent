@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { completeOnboarding } from "@/agent/lib/onboarding";
+import {
+  requireAuthenticatedMember,
+  UnauthorizedError,
+} from "@/lib/auth/member";
 
 const bodySchema = z.object({
   name: z.string().trim().optional(),
@@ -15,11 +19,33 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  let member;
+  try {
+    member = await requireAuthenticatedMember();
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    throw error;
+  }
+
   let json: unknown;
   try {
     json = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (
+    json &&
+    typeof json === "object" &&
+    !Array.isArray(json) &&
+    ("memberId" in json || "externalAuthId" in json)
+  ) {
+    return NextResponse.json(
+      { error: "Client-supplied member identity is not allowed" },
+      { status: 400 },
+    );
   }
 
   const parsed = bodySchema.safeParse(json);
@@ -31,8 +57,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await completeOnboarding(parsed.data);
-    return NextResponse.json(result);
+    const result = await completeOnboarding({
+      ...parsed.data,
+      memberId: member.id,
+    });
+    return NextResponse.json({
+      ...result,
+      memberId: member.id,
+    });
   } catch (err) {
     console.error("[onboarding]", err);
     const message = err instanceof Error ? err.message : "Unknown error";
