@@ -11,7 +11,7 @@ These are tracer-bullet tickets for independent Cursor agents. Complete them in 
 | [GS-005](./GS-005-telegram-link-and-sync.md) | Secure Telegram linking and sync | GS-004 |
 | [GS-006](./GS-006-inbound-job-alerts.md) | Job-alert email ingestion | GS-001, GS-002 |
 | [GS-007](./GS-007-discovery-pipeline.md) | Evidence-backed discovery orchestration | GS-003, GS-006 |
-| [GS-008](./GS-008-product-ui.md) | Shadcn onboarding and workspace | GS-003, GS-004, GS-007 |
+| [GS-008](./GS-008-product-ui.md) | Shadcn onboarding and workspace (Telegram-first deferred auth) | GS-003, GS-004, GS-007 |
 | [GS-009](./GS-009-eve-evals.md) | Agent behavior regression suite | GS-003, GS-004, GS-007 |
 
 ## Shared rules

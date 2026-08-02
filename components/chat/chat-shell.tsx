@@ -28,7 +28,12 @@ import {
 } from "./conversation-api";
 import type { ChatConversation, DurableChatMessage } from "./types";
 
-export function ChatShell() {
+type ChatShellProps = {
+  /** When true, omit SiteHeader and skip legacy full-page onboarding. */
+  embedded?: boolean;
+};
+
+export function ChatShell({ embedded = false }: ChatShellProps) {
   const [hydrated, setHydrated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingState>({
@@ -183,20 +188,20 @@ export function ChatShell() {
 
   if (!hydrated) {
     return (
-      <div className="grid min-h-dvh place-items-center gap-3">
+      <div className="grid min-h-[50dvh] place-items-center gap-3">
         <Skeleton className="h-4 w-32" />
         <p className="text-sm text-muted-foreground">Loading scout</p>
       </div>
     );
   }
 
-  if (!onboarding.completed) {
+  if (!embedded && !onboarding.completed) {
     return <OnboardingFlow onComplete={(result) => void handleOnboardingComplete(result)} />;
   }
 
   if (loadError) {
     return (
-      <div className="grid min-h-dvh place-items-center gap-3 px-6 text-center">
+      <div className="grid min-h-[50dvh] place-items-center gap-3 px-6 text-center">
         <p className="text-sm text-destructive">{loadError}</p>
         <Button type="button" onClick={() => void loadWorkspace()}>
           Retry
@@ -207,7 +212,7 @@ export function ChatShell() {
 
   if (!activeConversation || !panelReady) {
     return (
-      <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">
+      <div className="grid min-h-[50dvh] place-items-center text-sm text-muted-foreground">
         Loading scout
       </div>
     );
@@ -228,8 +233,14 @@ export function ChatShell() {
     Boolean(onboarding.kickoffMessage) && !onboarding.kickoffSent;
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
-      <SiteHeader active="chat" />
+    <div
+      className={
+        embedded
+          ? "flex min-h-[70dvh] flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card/40"
+          : "flex h-dvh flex-col overflow-hidden"
+      }
+    >
+      {embedded ? null : <SiteHeader active="chat" />}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ChatSidebar
           threads={conversations}

@@ -71,7 +71,7 @@ export default function HowItWorksPage() {
               style={{ animationDelay: "140ms" }}
             >
               <Button asChild size="lg">
-                <Link href="/">Open chat</Link>
+                <Link href="/get-started">Get started</Link>
               </Button>
               <Button asChild variant="outline" size="lg">
                 <a href="#workflow">See the workflow</a>
