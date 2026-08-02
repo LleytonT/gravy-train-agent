@@ -11,8 +11,14 @@ function textOf(request: MockModelRequest): string {
   return request.lastUserMessage ?? "";
 }
 
-function hasToolResults(request: MockModelRequest): boolean {
-  return request.toolResults.length > 0;
+/**
+ * True only while the model is mid tool-loop (latest prompt message is a tool
+ * result). Prior-turn tool results remain in the prompt on later user turns and
+ * must not trigger synthesis.
+ */
+function awaitingToolSynthesis(request: MockModelRequest): boolean {
+  const last = request.messages.at(-1);
+  return last?.role === "tool" && request.toolResults.length > 0;
 }
 
 function latestTool(request: MockModelRequest, name: string) {
@@ -192,11 +198,11 @@ function synthesize(request: MockModelRequest): string {
 
 function respond(request: MockModelRequest): MockModelResponse | string {
   // New session / first user turn — isolate fixture state across eval cases.
-  if (request.userMessageCount === 1 && !hasToolResults(request)) {
+  if (request.userMessageCount === 1 && !awaitingToolSynthesis(request)) {
     resetFixtureStore();
   }
 
-  if (hasToolResults(request)) {
+  if (awaitingToolSynthesis(request)) {
     return synthesize(request);
   }
 

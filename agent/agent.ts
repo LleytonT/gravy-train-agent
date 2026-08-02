@@ -13,6 +13,11 @@ if (isEvalFixture()) {
 
 export default defineAgent(
   isEvalFixture()
-    ? { model: createEvalFixtureModel() }
+    ? {
+        model: createEvalFixtureModel(),
+        // mockModel has no AI Gateway catalog entry — supply a window so
+        // compaction can compile without provider metadata.
+        modelContextWindowTokens: 128_000,
+      }
     : { model: AGENT_MODEL, reasoning: "low" },
 );
