@@ -1,7 +1,12 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
+import {
+  getMemberContextSnapshot,
+  scoringPrefsFromSnapshot,
+} from "../lib/career-profile.js";
 import { ensureSchema } from "../lib/db/client.js";
+import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 import {
   buildRoleRecommendations,
@@ -9,17 +14,15 @@ import {
   suggestOutreachAngles,
   type OutreachTargetInput,
 } from "../lib/personalize.js";
-import { parsePreferences, readUserProfile } from "../lib/profile.js";
-import { parseCareerIdentityFromProfile } from "../lib/role-affinity.js";
 import { scoreCompany } from "../lib/scoring.js";
 
 /**
  * Personalized role recommendations across gravy-train companies,
- * tailored to the user's LinkedIn role family + geography.
+ * tailored to the member's structured career profile.
  */
 export default defineTool({
   description:
-    "Recommend roles at gravy-train companies personalized to the user's LinkedIn profile (e.g. Sales Engineer at Vercel AU → Field/Deployment/Sales Engineer seats at Decagon, Sierra, Cursor, Fireworks). Includes who to reach out to when known.",
+    "Recommend roles at gravy-train companies personalized to the member's career profile (e.g. Sales Engineer at Vercel AU → Field/Deployment/Sales Engineer seats at Decagon, Sierra, Cursor, Fireworks). Includes who to reach out to when known.",
   inputSchema: z.object({
     limit: z.number().int().min(1).max(12).optional(),
     includeOutreach: z.boolean().optional(),
@@ -28,17 +31,17 @@ export default defineTool({
       .optional()
       .describe("Optional: focus recommendations on one company"),
   }),
-  async execute({ limit, includeOutreach, company }) {
+  async execute({ limit, includeOutreach, company }, ctx) {
     await ensureSchema();
-    const profile = readUserProfile();
-    const prefs = parsePreferences(profile);
-    const identity = parseCareerIdentityFromProfile(profile);
+    const { memberId } = requireMemberCaller(ctx);
+    const snapshot = await getMemberContextSnapshot(memberId);
+    const prefs = scoringPrefsFromSnapshot(snapshot);
 
     let companies = await repo.listCompanies();
     if (company) {
       const focused = await repo.getCompanyByName(company);
       if (!focused) {
-        return { found: false, company, identity };
+        return { found: false, company, identity: snapshot.identity };
       }
       companies = [focused];
     }
@@ -62,8 +65,6 @@ export default defineTool({
           watchlistTier: c.watchlistTier,
           companyCategory: c.category,
           companyName: c.name,
-          roleFamily: identity.roleFamily,
-          geographyHints: identity.geographyHints,
         }),
       );
     }
@@ -73,20 +74,20 @@ export default defineTool({
       openRoles
         .filter((role) => role.status === "open" || role.status === "rumored")
         .map(async (role) => {
-        const co = await repo.getCompanyById(role.companyId);
-        return {
-          companyId: role.companyId,
-          companyName: co?.name ?? role.companyId,
-          title: role.title,
-          location: role.location,
-          sourceUrl: role.sourceUrl,
-          status: role.status,
-        };
-      }),
+          const co = await repo.getCompanyById(role.companyId);
+          return {
+            companyId: role.companyId,
+            companyName: co?.name ?? role.companyId,
+            title: role.title,
+            location: role.location,
+            sourceUrl: role.sourceUrl,
+            status: role.status,
+          };
+        }),
     );
 
     const result = buildRoleRecommendations({
-      profileMarkdown: profile,
+      profileMarkdown: snapshot.modelContextMarkdown,
       companies,
       signalsByCompany: signalsByCompany as Map<
         string,
@@ -94,6 +95,7 @@ export default defineTool({
       >,
       scoresByCompany,
       openRoles: openRoleInputs,
+      identityOverride: snapshot.identity,
     });
 
     const capped = result.recommendations.slice(0, limit ?? 8);
@@ -133,6 +135,7 @@ export default defineTool({
     }
 
     return {
+      memberId,
       identity: result.identity,
       count: capped.length,
       recommendations: capped.map((rec) => ({

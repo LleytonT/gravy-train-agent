@@ -1,21 +1,16 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
-import {
-  formatCareerIdentitySection,
-  detectRoleFamily,
-  extractGeographyHints,
-  type CareerIdentity,
-} from "../lib/role-affinity.js";
-import { updateUserProfile, readUserProfile } from "../lib/profile.js";
+import { applyExplicitProfileChanges } from "../lib/career-profile.js";
+import { requireMemberCaller } from "../lib/identity.js";
 
 /**
- * Ingest a LinkedIn (or manually described) career profile into user-profile.md.
- * Capture worker can POST structured fields; chat can pass the same shape.
+ * Ingest a manually described (or captured) career identity into the
+ * structured member career profile. LinkedIn scraping is out of scope.
  */
 export default defineTool({
   description:
-    "Save the user's LinkedIn career identity (title, company, location, headline) into persistent memory. Call after LinkedIn connect/capture or when they describe their current role. Personalizes Gravy Train role matching.",
+    "Save the member's career identity (title, company, location, headline) into structured profile memory. Call after they describe their current role or finish onboarding. Personalizes Gravy Train role matching.",
   inputSchema: z.object({
     name: z.string().optional(),
     headline: z.string().optional(),
@@ -25,83 +20,30 @@ export default defineTool({
     linkedInUrl: z.string().optional(),
     seniority: z.string().optional(),
     summary: z.string().optional(),
-    /** If true, also refresh Identity / Targeting sections for consistency. */
+    interests: z.array(z.string()).optional(),
     syncIdentitySections: z.boolean().optional(),
   }),
-  async execute(input) {
-    const roleFamily = detectRoleFamily(
-      [input.currentTitle, input.headline].filter(Boolean).join(" | "),
-    );
-    const geographyHints = extractGeographyHints(
-      input.location,
-      input.headline,
-      input.currentTitle,
-      input.summary,
-    );
-
-    const identity: CareerIdentity = {
+  async execute(input, ctx) {
+    const { memberId } = requireMemberCaller(ctx);
+    const snapshot = await applyExplicitProfileChanges(memberId, {
       name: input.name,
       headline: input.headline,
       currentTitle: input.currentTitle,
       currentCompany: input.currentCompany,
       location: input.location,
       linkedInUrl: input.linkedInUrl,
-      roleFamily,
       seniority: input.seniority,
-      geographyHints,
       summary: input.summary,
-    };
-
-    const careerSection = formatCareerIdentitySection(identity);
-    updateUserProfile({
-      replaceSection: {
-        heading: "Career Identity",
-        content: careerSection,
-      },
+      interests: input.interests,
     });
-
-    if (input.syncIdentitySections !== false) {
-      if (input.name || input.location || input.currentTitle || input.currentCompany) {
-        const roleToday =
-          input.currentTitle && input.currentCompany
-            ? `${input.currentTitle} at ${input.currentCompany}`
-            : input.currentTitle ?? input.currentCompany ?? "";
-        updateUserProfile({
-          replaceSection: {
-            heading: "Identity",
-            content: [
-              `- Name: ${input.name ?? ""}`,
-              `- WhatsApp: _(unchanged unless you tell me)_`,
-              `- Location: ${input.location ?? ""}`,
-              `- Role today: ${roleToday}`,
-            ].join("\n"),
-          },
-        });
-      }
-
-      if (input.currentTitle || input.location) {
-        updateUserProfile({
-          replaceSection: {
-            heading: "Targeting",
-            content: [
-              `- Role: ${input.currentTitle ?? ""}`,
-              `- Geography: ${input.location ?? ""}`,
-              `- Background: _(from LinkedIn — refine via chat)_`,
-              `- Role family: ${roleFamily}`,
-            ].join("\n"),
-          },
-        });
-      }
-    }
 
     return {
       saved: true,
-      identity: {
-        ...identity,
-        roleFamily,
-        geographyHints,
-      },
-      profilePreview: readUserProfile().slice(0, 1200),
+      memberId,
+      identity: snapshot.identity,
+      content: snapshot.modelContextMarkdown,
+      // retained for older prompts that expected a preview string
+      preview: snapshot.modelContextMarkdown.slice(0, 1200),
     };
   },
 });

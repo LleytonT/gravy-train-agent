@@ -284,6 +284,10 @@ export const agentSessions = pgTable(
       table.surface,
       table.eveSessionId,
     ),
+    uniqueIndex("uq_agent_sessions_conversation_surface").on(
+      table.conversationId,
+      table.surface,
+    ),
     index("idx_agent_sessions_conversation_id").on(table.conversationId),
   ],
 );
@@ -720,6 +724,15 @@ export type NewOpportunity = typeof opportunities.$inferInsert;
 
 export type RunLog = typeof runLogs.$inferSelect;
 export type NewRunLog = typeof runLogs.$inferInsert;
+
+export type Conversation = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+
+export type Message = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
+
+export type AgentSession = typeof agentSessions.$inferSelect;
+export type NewAgentSession = typeof agentSessions.$inferInsert;
 
 export const schema = {
   members,

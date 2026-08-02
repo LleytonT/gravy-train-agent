@@ -11,67 +11,91 @@ import {
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { HandleMessageStreamEvent, SessionState } from "eve/client";
+import type { SessionState } from "eve/client";
 import { PanelLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ChatPanel } from "./chat-panel";
 import { ChatSidebar } from "./chat-sidebar";
 import {
-  createThread,
-  loadActiveThreadId,
-  loadThreads,
-  saveActiveThreadId,
-  saveThreads,
-  titleFromPrompt,
-} from "./thread-storage";
-import type { ChatThread } from "./types";
+  clearLegacyThreadStorage,
+  createConversation,
+  fetchConversations,
+  fetchEveSession,
+  fetchMessages,
+  loadActiveConversationId,
+  saveActiveConversationId,
+} from "./conversation-api";
+import type { ChatConversation, DurableChatMessage } from "./types";
 
 export function ChatShell() {
   const [hydrated, setHydrated] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingState>({
     completed: false,
   });
-  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
+  const [messagesById, setMessagesById] = useState<
+    Record<string, DurableChatMessage[]>
+  >({});
+  const [sessionById, setSessionById] = useState<
+    Record<string, SessionState | undefined>
+  >({});
+  const [loadedIds, setLoadedIds] = useState<Record<string, true>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [panelReady, setPanelReady] = useState(false);
+
+  const loadWorkspace = useCallback(async () => {
+    clearLegacyThreadStorage();
+    setLoadError(null);
+    setPanelReady(false);
+
+    let list = await fetchConversations();
+    if (list.length === 0) {
+      const first = await createConversation();
+      list = [first];
+    }
+
+    const savedActive = loadActiveConversationId();
+    const nextActive =
+      list.find((conversation) => conversation.id === savedActive)?.id ??
+      list[0]!.id;
+
+    const [messages, eveSession] = await Promise.all([
+      fetchMessages(nextActive),
+      fetchEveSession(nextActive),
+    ]);
+
+    setConversations(list);
+    setActiveId(nextActive);
+    saveActiveConversationId(nextActive);
+    setMessagesById({ [nextActive]: messages });
+    setSessionById({ [nextActive]: eveSession });
+    setLoadedIds({ [nextActive]: true });
+    setPanelReady(true);
+  }, []);
 
   useEffect(() => {
     setOnboarding(loadOnboardingState());
+    void loadWorkspace()
+      .catch((error: unknown) => {
+        setLoadError(
+          error instanceof Error ? error.message : "Failed to load conversations",
+        );
+      })
+      .finally(() => setHydrated(true));
+  }, [loadWorkspace]);
 
-    const existing = loadThreads();
-    if (existing.length === 0) {
-      const first = createThread();
-      setThreads([first]);
-      setActiveId(first.id);
-      saveThreads([first]);
-      saveActiveThreadId(first.id);
-    } else {
-      setThreads(existing);
-      const savedActive = loadActiveThreadId();
-      const nextActive =
-        existing.find((thread) => thread.id === savedActive)?.id ?? existing[0].id;
-      setActiveId(nextActive);
-      saveActiveThreadId(nextActive);
-    }
-    setHydrated(true);
-  }, []);
-
-  const activeThread = useMemo(
-    () => threads.find((thread) => thread.id === activeId) ?? threads[0],
-    [threads, activeId],
+  const activeConversation = useMemo(
+    () =>
+      conversations.find((conversation) => conversation.id === activeId) ??
+      conversations[0],
+    [conversations, activeId],
   );
 
-  const updateThreads = useCallback((updater: (prev: ChatThread[]) => ChatThread[]) => {
-    setThreads((prev) => {
-      const next = updater(prev);
-      saveThreads(next);
-      return next;
-    });
-  }, []);
-
   const handleOnboardingComplete = useCallback(
-    (result: {
+    async (result: {
       identity: {
         name?: string;
         currentTitle?: string;
@@ -99,14 +123,18 @@ export function ChatShell() {
       saveOnboardingState(next);
       setOnboarding(next);
 
-      const thread = createThread(
+      const conversation = await createConversation(
         `${result.identity.currentTitle ?? "Role"} → gravy train`,
       );
-      updateThreads((prev) => [thread, ...prev]);
-      setActiveId(thread.id);
-      saveActiveThreadId(thread.id);
+      setConversations((prev) => [conversation, ...prev]);
+      setActiveId(conversation.id);
+      saveActiveConversationId(conversation.id);
+      setMessagesById((prev) => ({ ...prev, [conversation.id]: [] }));
+      setSessionById((prev) => ({ ...prev, [conversation.id]: undefined }));
+      setLoadedIds((prev) => ({ ...prev, [conversation.id]: true }));
+      setPanelReady(true);
     },
-    [updateThreads],
+    [],
   );
 
   const handleKickoffSent = useCallback(() => {
@@ -123,53 +151,34 @@ export function ChatShell() {
     setSidebarOpen(false);
   }, []);
 
-  const handleNewChat = useCallback(() => {
-    const thread = createThread();
-    updateThreads((prev) => [thread, ...prev]);
-    setActiveId(thread.id);
-    saveActiveThreadId(thread.id);
-    setSidebarOpen(false);
-  }, [updateThreads]);
-
-  const handleSelect = useCallback((id: string) => {
-    setActiveId(id);
-    saveActiveThreadId(id);
+  const handleNewChat = useCallback(async () => {
+    const conversation = await createConversation();
+    setConversations((prev) => [conversation, ...prev]);
+    setActiveId(conversation.id);
+    saveActiveConversationId(conversation.id);
+    setMessagesById((prev) => ({ ...prev, [conversation.id]: [] }));
+    setSessionById((prev) => ({ ...prev, [conversation.id]: undefined }));
+    setLoadedIds((prev) => ({ ...prev, [conversation.id]: true }));
     setSidebarOpen(false);
   }, []);
 
-  const handlePersist = useCallback(
-    (snapshot: {
-      events: readonly HandleMessageStreamEvent[];
-      session?: SessionState;
-    }) => {
-      updateThreads((prev) =>
-        prev.map((thread) =>
-          thread.id === activeId
-            ? {
-                ...thread,
-                updatedAt: Date.now(),
-                events: [...snapshot.events],
-                session: snapshot.session,
-              }
-            : thread,
-        ),
-      );
+  const handleSelect = useCallback(
+    async (id: string) => {
+      setActiveId(id);
+      saveActiveConversationId(id);
+      setSidebarOpen(false);
+      if (loadedIds[id]) {
+        return;
+      }
+      const [messages, eveSession] = await Promise.all([
+        fetchMessages(id),
+        fetchEveSession(id),
+      ]);
+      setMessagesById((prev) => ({ ...prev, [id]: messages }));
+      setSessionById((prev) => ({ ...prev, [id]: eveSession }));
+      setLoadedIds((prev) => ({ ...prev, [id]: true }));
     },
-    [activeId, updateThreads],
-  );
-
-  const handleTitleSeed = useCallback(
-    (prompt: string) => {
-      updateThreads((prev) =>
-        prev.map((thread) =>
-          thread.id === activeId &&
-          (thread.title === "New scout" || thread.title.includes("→ gravy"))
-            ? { ...thread, title: titleFromPrompt(prompt), updatedAt: Date.now() }
-            : thread,
-        ),
-      );
-    },
-    [activeId, updateThreads],
+    [loadedIds],
   );
 
   if (!hydrated) {
@@ -182,10 +191,21 @@ export function ChatShell() {
   }
 
   if (!onboarding.completed) {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+    return <OnboardingFlow onComplete={(result) => void handleOnboardingComplete(result)} />;
   }
 
-  if (!activeThread) {
+  if (loadError) {
+    return (
+      <div className="grid min-h-dvh place-items-center gap-3 px-6 text-center">
+        <p className="text-sm text-destructive">{loadError}</p>
+        <Button type="button" onClick={() => void loadWorkspace()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!activeConversation || !panelReady) {
     return (
       <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">
         Loading scout
@@ -212,23 +232,33 @@ export function ChatShell() {
       <SiteHeader active="chat" />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <ChatSidebar
-          threads={threads}
-          activeId={activeThread.id}
+          threads={conversations}
+          activeId={activeConversation.id}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          onNewChat={handleNewChat}
-          onSelect={handleSelect}
+          onNewChat={() => void handleNewChat()}
+          onSelect={(id) => void handleSelect(id)}
           onRedoSetup={handleRedoSetup}
         />
 
         <main className="flex min-w-0 flex-1 flex-col bg-background/40">
           <ChatPanel
-            key={activeThread.id}
-            threadId={activeThread.id}
-            initialEvents={activeThread.events ?? []}
-            initialSession={activeThread.session}
-            onPersist={handlePersist}
-            onTitleSeed={handleTitleSeed}
+            key={activeConversation.id}
+            conversation={activeConversation}
+            initialMessages={messagesById[activeConversation.id] ?? []}
+            initialSession={sessionById[activeConversation.id]}
+            onConversationMeta={(conversation) => {
+              setConversations((prev) => {
+                const rest = prev.filter((row) => row.id !== conversation.id);
+                return [conversation, ...rest];
+              });
+            }}
+            onMessagesChange={(messages) => {
+              setMessagesById((prev) => ({
+                ...prev,
+                [activeConversation.id]: messages,
+              }));
+            }}
             matches={onboarding.matches}
             identityLabel={identityLabel}
             autoKickoffMessage={needsKickoff ? onboarding.kickoffMessage : null}
