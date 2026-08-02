@@ -1,5 +1,8 @@
 import { telegramChannel } from "eve/channels/telegram";
+import { and, eq, isNull } from "drizzle-orm";
 
+import { getDb } from "../lib/db/client.js";
+import { channelIdentities } from "../lib/db/schema.js";
 import {
   getMessagingDestination,
   saveMessagingDestination,
@@ -14,9 +17,35 @@ import {
  *   TELEGRAM_BOT_USERNAME          (without @)
  *
  * Webhook: POST /eve/v1/telegram
+ *
+ * Durable chatId persistence requires a linked channel identity (GS-005).
+ * Until then, inbound Telegram still reaches the agent; messaging profile
+ * writes happen only when the Telegram user is already linked to a member.
  */
 
 const botUsername = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "");
+
+async function linkedMemberIdForTelegramUser(
+  telegramUserId: string,
+): Promise<string | null> {
+  try {
+    const db = getDb();
+    const [row] = await db
+      .select({ memberId: channelIdentities.memberId })
+      .from(channelIdentities)
+      .where(
+        and(
+          eq(channelIdentities.provider, "telegram"),
+          eq(channelIdentities.externalUserId, telegramUserId),
+          isNull(channelIdentities.revokedAt),
+        ),
+      )
+      .limit(1);
+    return row?.memberId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export default telegramChannel({
   botUsername: botUsername || undefined,
@@ -30,16 +59,19 @@ export default telegramChannel({
       return null;
     }
 
-    // Persist chat id on first private inbound so digests can find the user.
-    if (message.chat.type === "private") {
+    // Persist chat id on first private inbound when the Telegram user is linked.
+    if (message.chat.type === "private" && message.from?.id) {
       try {
-        const existing = getMessagingDestination();
-        if (!existing.telegramChatId && message.chat.id) {
-          saveMessagingDestination({
-            telegramChatId: String(message.chat.id),
-            telegramUsername: message.from?.username ?? undefined,
-            consentUpdates: true,
-          });
+        const memberId = await linkedMemberIdForTelegramUser(message.from.id);
+        if (memberId) {
+          const existing = await getMessagingDestination(memberId);
+          if (!existing.telegramChatId && message.chat.id) {
+            await saveMessagingDestination(memberId, {
+              telegramChatId: String(message.chat.id),
+              telegramUsername: message.from?.username ?? undefined,
+              consentUpdates: true,
+            });
+          }
         }
       } catch (err) {
         console.warn(
@@ -66,6 +98,11 @@ export default telegramChannel({
     }
     if (from.username !== undefined) attributes.username = from.username;
 
+    const linkedMemberId = await linkedMemberIdForTelegramUser(from.id);
+    if (linkedMemberId) {
+      attributes.memberId = linkedMemberId;
+    }
+
     const isGroup =
       message.chat.type === "group" || message.chat.type === "supergroup";
     const principalId = isGroup
@@ -79,6 +116,7 @@ export default telegramChannel({
         issuer: isGroup ? `telegram:${message.chat.id}` : "telegram",
         principalId,
         principalType: from.isBot ? "service" : "user",
+        subject: from.id,
       },
     };
   },

@@ -2,6 +2,8 @@
 
 Blocked by: GS-001 and GS-002.
 
+Status: implemented on branch (structured profile module + tool migration; resume ingest; Markdown no longer authoritative).
+
 ## Goal
 
 Replace shared Markdown memory with a structured, member-owned career profile that preserves provenance and explicit preference precedence.

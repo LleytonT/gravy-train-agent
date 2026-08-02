@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
+import { requireMemberCaller } from "../lib/identity.js";
 import {
   getMessagingDestination,
   isTelegramConfigured,
@@ -8,11 +9,11 @@ import {
 
 /**
  * Proactive Telegram delivery via Bot API sendMessage.
- * Prefer this for nightly digests when the user has linked Telegram.
+ * Prefer this for nightly digests when the member has linked Telegram.
  */
 export default defineTool({
   description:
-    "Send a Telegram message to the linked user. Use for nightly digests and setup confirmations when Telegram is linked. No-ops cleanly if unlinked or bot token missing.",
+    "Send a Telegram message to the linked member. Use for nightly digests and setup confirmations when Telegram is linked. No-ops cleanly if unlinked or bot token missing.",
   inputSchema: z.object({
     body: z.string().min(1).max(4000),
     chatId: z
@@ -20,9 +21,10 @@ export default defineTool({
       .optional()
       .describe("Override chat id; defaults to profile telegramChatId"),
   }),
-  async execute({ body, chatId }) {
+  async execute({ body, chatId }, ctx) {
+    const { memberId } = requireMemberCaller(ctx);
     const token = process.env.TELEGRAM_BOT_TOKEN;
-    const dest = getMessagingDestination();
+    const dest = await getMessagingDestination(memberId);
     const recipient = chatId ?? dest.telegramChatId;
 
     if (!token || !isTelegramConfigured()) {
@@ -39,7 +41,7 @@ export default defineTool({
         sent: false,
         skipped: true,
         reason:
-          "No telegramChatId in profile yet. Ask the user to open the bot deep link and tap Start, then call save_messaging_destination.",
+          "No telegramChatId in profile yet. Ask the member to open the bot deep link and tap Start, then call save_messaging_destination.",
       };
     }
 
@@ -48,7 +50,7 @@ export default defineTool({
         sent: false,
         skipped: true,
         reason:
-          "User has not consented to Telegram updates (consentUpdates=false). Confirm consent before sending digests.",
+          "Member has not consented to Telegram updates (consentUpdates=false). Confirm consent before sending digests.",
       };
     }
 

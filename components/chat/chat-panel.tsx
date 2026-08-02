@@ -48,12 +48,15 @@ export function ChatPanel({
   autoKickoffMessage,
   onKickoffSent,
 }: ChatPanelProps) {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const agent = useEveAgent({
     initialEvents: initialEvents ?? [],
     initialSession,
     auth: {
       bearer: async () => {
+        if (!isLoaded) {
+          throw new Error("Waiting for sign-in before starting chat");
+        }
         const token = await getToken();
         if (!token) {
           throw new Error("Sign in required to chat with Gravy Scout");
@@ -91,6 +94,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!autoKickoffMessage) return;
+    if (!isLoaded || !isSignedIn) return;
     if (kickoffStarted.current) return;
     if ((initialEvents?.length ?? 0) > 0) return;
     if (messages.length > 0) return;
@@ -103,13 +107,15 @@ export function ChatPanel({
   }, [
     autoKickoffMessage,
     initialEvents,
+    isLoaded,
+    isSignedIn,
     messages.length,
     onKickoffSent,
     onTitleSeed,
   ]);
 
   async function sendMessage(message: string) {
-    if (!isSignedIn) {
+    if (!isLoaded || !isSignedIn) {
       throw new Error("Sign in required to chat with Gravy Scout");
     }
     if (messages.length === 0) onTitleSeed(message);

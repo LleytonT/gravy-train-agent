@@ -32,6 +32,12 @@ Required variables:
 
 `vercelOidc()` remains available for the Eve CLI and internal Vercel callers. Those principals do not automatically receive a memberId; member-scoped tools fail closed until a Clerk or local-dev member context is present.
 
+## Chat authorization notes
+
+The web chat sends a Clerk session JWT as `Authorization: Bearer …`. Eve verifies it with `@clerk/backend` (`verifyToken` / `authenticateRequest`). Do **not** default `authorizedParties` to localhost — Clerk session tokens often carry an `azp` for the Clerk Frontend API, and a mismatched allowlist produces Eve's `Authorization is required for this route.` 401. Set `CLERK_AUTHORIZED_PARTIES` only when you intentionally pin `azp` origins.
+
+Kickoff messages wait for Clerk `isLoaded` + `isSignedIn` before calling Eve.
+
 ## Verification
 
 ```bash

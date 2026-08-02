@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * CLI: capture the logged-in user's LinkedIn profile and write Career Identity
- * into agent/sandbox/workspace/memory/user-profile.md (via ingest helpers).
+ * CLI: capture the logged-in user's LinkedIn profile into the local Markdown
+ * projection file. Product personalization uses the Postgres career profile
+ * module (`agent/lib/career-profile.ts`); after capture, paste fields via chat
+ * `ingest_linkedin_profile` or onboarding for the authenticated member.
  *
  * Usage:
  *   tsx capture/run-profile-capture.ts [--dry-run] [--headed] [--url=https://www.linkedin.com/in/...]
