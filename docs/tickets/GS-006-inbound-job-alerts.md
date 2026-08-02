@@ -2,6 +2,8 @@
 
 Blocked by: GS-001 and GS-002.
 
+Status: implemented on branch (Resend Marketplace inbound + ingestion module + Profile UI).
+
 ## Goal
 
 Let each member subscribe to or forward job-board alerts without granting Gravy Scout broad mailbox access.
@@ -33,3 +35,11 @@ Every source adapter emits the same normalized source-item contract. Downstream 
 ## Not in scope
 
 Full Gmail access, sending email as the member, or mailbox search.
+
+## Implementation notes
+
+- Provider: **Resend** (Vercel Marketplace). Docs: `docs/inbound-email.md`.
+- Module seam: `agent/lib/ingestion/` (`SourceItemInput` → `ingestSourceItems`).
+- Webhook: `POST /api/inbound/resend` (public; Svix-verified).
+- Profile: `/profile` + `GET|POST|DELETE /api/inbound/alias`.
+- Verify: `pnpm test:inbound`.

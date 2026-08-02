@@ -49,7 +49,7 @@ pnpm capture:profile               # thereafter
 
 Or tell the agent your title/company/location in chat — it calls `ingest_linkedin_profile`.
 
-Browse `/how-it-works` for the nightly workflow diagram (public). Chat, onboarding, and Eve HTTP require Clerk sign-in. See `docs/auth.md`.
+Browse `/how-it-works` for the nightly workflow diagram (public). Chat, onboarding, and Eve HTTP require Clerk sign-in. See `docs/auth.md`. Job-alert ingestion uses a Resend inbound address per member — see `docs/inbound-email.md` and signed-in `/profile`.
 
 ## Project layout (Eve conventions)
 

@@ -54,6 +54,7 @@ No production cold start calls the seed script. The script is idempotent for com
 pnpm db:migrate       # also proves migration replay is safe
 pnpm test:database    # creates two members, verifies isolated rows, cleans up
 pnpm test:auth        # identity upserts + Eve anonymous auth removed
+pnpm test:inbound     # job-alert parse fixtures, webhook verify, ingest dedupe
 pnpm test:scoring
 pnpm typecheck
 pnpm build

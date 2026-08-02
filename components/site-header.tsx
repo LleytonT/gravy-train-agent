@@ -6,7 +6,7 @@ import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
 type SiteHeaderProps = {
-  active?: "chat" | "workflow";
+  active?: "chat" | "workflow" | "profile";
 };
 
 export function SiteHeader({ active = "chat" }: SiteHeaderProps) {
@@ -34,6 +34,15 @@ export function SiteHeader({ active = "chat" }: SiteHeaderProps) {
           >
             <Link href="/how-it-works">How it works</Link>
           </Button>
+          <Show when="signed-in">
+            <Button
+              asChild
+              variant={active === "profile" ? "secondary" : "ghost"}
+              size="sm"
+            >
+              <Link href="/profile">Profile</Link>
+            </Button>
+          </Show>
           <Show when="signed-out">
             <SignInButton mode="modal">
               <Button size="sm" variant="default" className="ml-1">
