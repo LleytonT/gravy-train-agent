@@ -19,6 +19,7 @@
     "db:ensure": "pnpm db:migrate",
     "test:database": "tsx scripts/smoke-database.ts",
     "test:auth": "tsx scripts/smoke-auth.ts",
+    "test:conversation": "tsx scripts/smoke-conversation.ts",
     "capture": "tsx capture/run-capture.ts",
     "capture:dry": "tsx capture/run-capture.ts --dry-run",
     "capture:x": "tsx capture/run-capture.ts --source=x",

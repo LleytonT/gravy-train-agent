@@ -11,37 +11,41 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@clerk/nextjs";
-import type { HandleMessageStreamEvent, SessionState } from "eve/client";
+import type { SessionState } from "eve/client";
 import { useEveAgent } from "eve/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChatComposer } from "./chat-composer";
 import { ChatEmpty } from "./chat-empty";
+import {
+  beginTurn,
+  completeTurn,
+  extractAssistantText,
+  syncTurnSession,
+} from "./conversation-api";
+import { DurableMessageBubble } from "./durable-message";
 import { MessageBubble } from "./message-parts";
+import type { ChatConversation, DurableChatMessage } from "./types";
 
 type ChatPanelProps = {
-  threadId: string;
-  initialEvents?: readonly HandleMessageStreamEvent[];
+  conversation: ChatConversation;
+  initialMessages: DurableChatMessage[];
   initialSession?: SessionState;
-  onPersist: (snapshot: {
-    events: readonly HandleMessageStreamEvent[];
-    session?: SessionState;
-  }) => void;
-  onTitleSeed: (prompt: string) => void;
+  onConversationMeta: (conversation: ChatConversation) => void;
+  onMessagesChange: (messages: DurableChatMessage[]) => void;
   sidebarToggle: React.ReactNode;
   matches?: OnboardingMatch[];
   identityLabel?: string;
-  /** Auto-send once after onboarding (career-advisor kickoff). */
   autoKickoffMessage?: string | null;
   onKickoffSent?: () => void;
 };
 
 export function ChatPanel({
-  threadId,
-  initialEvents,
+  conversation,
+  initialMessages,
   initialSession,
-  onPersist,
-  onTitleSeed,
+  onConversationMeta,
+  onMessagesChange,
   sidebarToggle,
   matches,
   identityLabel,
@@ -49,8 +53,15 @@ export function ChatPanel({
   onKickoffSent,
 }: ChatPanelProps) {
   const { getToken, isSignedIn } = useAuth();
+  const [durableMessages, setDurableMessages] =
+    useState<DurableChatMessage[]>(initialMessages);
+  const [pendingMember, setPendingMember] = useState<DurableChatMessage | null>(
+    null,
+  );
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
+
   const agent = useEveAgent({
-    initialEvents: initialEvents ?? [],
+    initialEvents: [],
     initialSession,
     auth: {
       bearer: async () => {
@@ -61,60 +72,149 @@ export function ChatPanel({
         return token;
       },
     },
-    onFinish(snapshot) {
-      onPersist({
-        events: snapshot.events,
-        session: snapshot.session,
-      });
+    async onFinish(snapshot) {
+      const session = snapshot.session;
+      if (!session?.sessionId) return;
+
+      const assistantBody = extractAssistantText(snapshot.data.messages);
+      if (!assistantBody) {
+        await syncTurnSession(conversation.id, {
+          eveSessionId: session.sessionId,
+          continuationToken: session.continuationToken,
+          streamIndex: session.streamIndex,
+        });
+        return;
+      }
+
+      const turnId =
+        session.continuationToken ??
+        `${session.sessionId}:${session.streamIndex ?? 0}`;
+      try {
+        const assistantMessage = await completeTurn(conversation.id, {
+          assistantBody,
+          assistantIdempotencyKey: `assistant:web:${turnId}`,
+          eveSessionId: session.sessionId,
+          continuationToken: session.continuationToken,
+          streamIndex: session.streamIndex,
+        });
+        setPendingMember(null);
+        setDurableMessages((prev) => {
+          if (prev.some((message) => message.id === assistantMessage.id)) {
+            return prev;
+          }
+          const next = [...prev, assistantMessage];
+          onMessagesChange(next);
+          return next;
+        });
+        onConversationMeta({
+          ...conversation,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        setBridgeError(
+          error instanceof Error
+            ? error.message
+            : "Failed to persist assistant reply",
+        );
+      }
     },
   });
 
-  const messages = agent.data.messages;
+  const liveMessages = agent.data.messages;
   const busy = agent.status === "submitted" || agent.status === "streaming";
-  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const kickoffStarted = useRef(false);
-  const sendRef = useRef(agent.send);
-  sendRef.current = agent.send;
+  const sendMessageRef = useRef<(message: string) => Promise<void>>(
+    async () => undefined,
+  );
 
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (persistTimer.current) clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(() => {
-      onPersist({
-        events: agent.events,
-        session: agent.session,
+    if (!agent.session?.sessionId) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      void syncTurnSession(conversation.id, {
+        eveSessionId: agent.session!.sessionId!,
+        continuationToken: agent.session!.continuationToken,
+        streamIndex: agent.session!.streamIndex,
+      }).catch(() => {
+        // Best-effort mid-stream cursor sync for reconnect recovery.
       });
-    }, 350);
+    }, 800);
     return () => {
-      if (persistTimer.current) clearTimeout(persistTimer.current);
+      if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [agent.events, agent.session, onPersist]);
+  }, [agent.session, conversation.id]);
+
+  sendMessageRef.current = async (message: string) => {
+    if (!isSignedIn) {
+      throw new Error("Sign in required to chat with Gravy Scout");
+    }
+    setBridgeError(null);
+    const idempotencyKey =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? `member:web:${crypto.randomUUID()}`
+        : `member:web:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const began = await beginTurn(conversation.id, {
+      body: message,
+      idempotencyKey,
+      titleFromBody: true,
+    });
+
+    onConversationMeta(began.conversation);
+    setDurableMessages((prev) => {
+      if (prev.some((row) => row.id === began.message.id)) return prev;
+      const next = [...prev, began.message];
+      onMessagesChange(next);
+      return next;
+    });
+    setPendingMember(began.message);
+
+    const evePayload =
+      began.shouldInjectContext && began.contextPrefix
+        ? `${began.contextPrefix}\n\n---\n\n${message}`
+        : message;
+
+    await agent.send({ message: evePayload });
+  };
 
   useEffect(() => {
     if (!autoKickoffMessage) return;
     if (kickoffStarted.current) return;
-    if ((initialEvents?.length ?? 0) > 0) return;
-    if (messages.length > 0) return;
+    if (durableMessages.length > 0) return;
+    if (liveMessages.length > 0) return;
 
     kickoffStarted.current = true;
-    onTitleSeed(autoKickoffMessage);
-    void sendRef.current({ message: autoKickoffMessage }).finally(() => {
+    void sendMessageRef.current(autoKickoffMessage).finally(() => {
       onKickoffSent?.();
     });
   }, [
     autoKickoffMessage,
-    initialEvents,
-    messages.length,
+    durableMessages.length,
+    liveMessages.length,
     onKickoffSent,
-    onTitleSeed,
   ]);
 
   async function sendMessage(message: string) {
-    if (!isSignedIn) {
-      throw new Error("Sign in required to chat with Gravy Scout");
-    }
-    if (messages.length === 0) onTitleSeed(message);
-    await agent.send({ message });
+    await sendMessageRef.current(message);
   }
+
+  const showEmpty =
+    durableMessages.length === 0 &&
+    liveMessages.length === 0 &&
+    !pendingMember &&
+    !autoKickoffMessage;
+
+  const showKickoffPlaceholder =
+    durableMessages.length === 0 &&
+    liveMessages.length === 0 &&
+    Boolean(autoKickoffMessage);
+
+  // Member lines are already in the durable timeline. While streaming, only
+  // show live assistant/tool parts (Eve may wrap the turn with context).
+  const streamingLive = busy
+    ? liveMessages.filter((message) => message.role !== "user")
+    : [];
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -126,7 +226,7 @@ export function ChatPanel({
               Gravy Scout
             </p>
             <p className="hidden font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase md:block">
-              Session {threadId.slice(0, 8)}
+              {conversation.title}
             </p>
           </div>
         </div>
@@ -143,13 +243,13 @@ export function ChatPanel({
             size="sm"
             onClick={() => agent.reset()}
           >
-            Reset
+            Reset session
           </Button>
         </div>
       </header>
       <Separator />
 
-      {messages.length === 0 && !autoKickoffMessage ? (
+      {showEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <ChatEmpty
             onSuggestion={(prompt) => void sendMessage(prompt)}
@@ -158,7 +258,7 @@ export function ChatPanel({
             identityLabel={identityLabel}
           />
         </div>
-      ) : messages.length === 0 && autoKickoffMessage ? (
+      ) : showKickoffPlaceholder ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 md:px-6">
             {matches && matches.length > 0 ? (
@@ -176,7 +276,10 @@ export function ChatPanel({
       ) : (
         <Conversation className="min-h-0">
           <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-0 py-6 md:gap-6 md:py-8">
-            {messages.map((message) => (
+            {durableMessages.map((message) => (
+              <DurableMessageBubble key={message.id} message={message} />
+            ))}
+            {streamingLive.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
           </ConversationContent>
@@ -184,10 +287,12 @@ export function ChatPanel({
         </Conversation>
       )}
 
-      {agent.error ? (
+      {bridgeError || agent.error ? (
         <div className="mx-auto w-full max-w-3xl px-4 pb-2 md:px-6">
           <Alert variant="destructive">
-            <AlertDescription>{agent.error.message}</AlertDescription>
+            <AlertDescription>
+              {bridgeError ?? agent.error?.message}
+            </AlertDescription>
           </Alert>
         </div>
       ) : null}
