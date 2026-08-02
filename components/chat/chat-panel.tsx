@@ -55,9 +55,6 @@ export function ChatPanel({
   const { getToken, isSignedIn } = useAuth();
   const [durableMessages, setDurableMessages] =
     useState<DurableChatMessage[]>(initialMessages);
-  const [pendingMember, setPendingMember] = useState<DurableChatMessage | null>(
-    null,
-  );
   const [bridgeError, setBridgeError] = useState<string | null>(null);
 
   const agent = useEveAgent({
@@ -97,7 +94,6 @@ export function ChatPanel({
           continuationToken: session.continuationToken,
           streamIndex: session.streamIndex,
         });
-        setPendingMember(null);
         setDurableMessages((prev) => {
           if (prev.some((message) => message.id === assistantMessage.id)) {
             return prev;
@@ -168,7 +164,6 @@ export function ChatPanel({
       onMessagesChange(next);
       return next;
     });
-    setPendingMember(began.message);
 
     const evePayload =
       began.shouldInjectContext && began.contextPrefix
@@ -202,7 +197,6 @@ export function ChatPanel({
   const showEmpty =
     durableMessages.length === 0 &&
     liveMessages.length === 0 &&
-    !pendingMember &&
     !autoKickoffMessage;
 
   const showKickoffPlaceholder =

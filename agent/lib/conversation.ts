@@ -436,19 +436,30 @@ export async function associateAgentSession(
     return updated!;
   }
 
-  const [created] = await db
-    .insert(agentSessions)
-    .values({
-      conversationId: input.conversationId,
-      memberId: input.memberId,
-      surface: input.surface,
-      eveSessionId: input.eveSessionId.trim(),
-      continuationTokenRef: input.continuationTokenRef ?? null,
-      lastEventIndex: nextIndex,
-      summary: input.summary ?? null,
-    })
-    .returning();
-  return created!;
+  try {
+    const [created] = await db
+      .insert(agentSessions)
+      .values({
+        conversationId: input.conversationId,
+        memberId: input.memberId,
+        surface: input.surface,
+        eveSessionId: input.eveSessionId.trim(),
+        continuationTokenRef: input.continuationTokenRef ?? null,
+        lastEventIndex: nextIndex,
+        summary: input.summary ?? null,
+      })
+      .returning();
+    return created!;
+  } catch {
+    // Concurrent first-associate on the same surface: retry as update.
+    const raced = await getAgentSession(
+      input.memberId,
+      input.conversationId,
+      input.surface,
+    );
+    if (!raced) throw new Error("Failed to associate agent session");
+    return associateAgentSession(input);
+  }
 }
 
 export function toEveSessionCursor(
