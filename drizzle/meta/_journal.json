@@ -47,8 +47,15 @@
     {
       "idx": 6,
       "version": "7",
+      "when": 1785649000000,
+      "tag": "0006_channel-link-tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
       "when": 1785645278091,
-      "tag": "0006_inbound_quarantine",
+      "tag": "0007_inbound_quarantine",
       "breakpoints": true
     }
   ]

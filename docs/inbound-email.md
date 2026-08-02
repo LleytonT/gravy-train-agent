@@ -25,7 +25,8 @@ Then in the Resend dashboard (or Marketplace-managed team):
 
 - Each member gets one active `connections` row with `provider = inbound_email`.
 - The address is `{random}@RESEND_INBOUND_DOMAIN`. Resend accepts any local-part on the receiving domain; Gravy Scout maps the recipient to `memberId`.
-- **Revoke** sets `status = revoked`. Further mail to that address is quarantined as `unknown_or_revoked_alias` and is not attributed.
+- **Revoke** sets `status = revoked`. Further mail to that address is quarantined as `unknown_or_revoked_alias` and is **not** ingested as member source items.
+- Profile still surfaces those quarantine rows by matching `recipient_address` to any alias the member has held (active or revoked).
 
 UI: signed-in **Profile & connections** (`/profile`) shows the address, setup steps, receipt counts, and quarantine errors.
 
@@ -41,7 +42,7 @@ Invalid or unattributable mail lands in `inbound_quarantine` with an observable 
 
 ## Retention
 
-Full private bodies are optional and short-lived. Defaults and purge semantics are documented in `agent/lib/ingestion/retention.ts` (`RETENTION_POLICY_DOC`). Evidence excerpts remain.
+Full private bodies are optional and short-lived. Defaults and purge semantics are documented in `agent/lib/ingestion/retention.ts` (`RETENTION_POLICY_DOC`). Evidence excerpts remain. `purgeExpiredFullBodies()` runs opportunistically on each inbound webhook and is covered by `pnpm test:inbound`.
 
 | Field | Retention |
 | --- | --- |

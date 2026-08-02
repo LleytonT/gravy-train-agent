@@ -20,6 +20,7 @@ export {
   clipExcerpt,
   fullBodyRetentionHours,
   fullBodyRetainedUntil,
+  purgeExpiredFullBodies,
   shouldRetainFullBody,
 } from "./retention.js";
 export { fetchReceivedEmailContent } from "./resend/fetch-email.js";

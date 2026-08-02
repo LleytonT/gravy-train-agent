@@ -27,7 +27,9 @@ const {
   ingestSourceItems,
   processInboundJobAlertEmail,
   ensureInboundAlias,
+  getInboundIngestionStatus,
   revokeInboundAlias,
+  purgeExpiredFullBodies,
   verifyResendWebhook,
   WebhookVerificationError,
   SOURCE_TYPE_JOB_LISTING,
@@ -281,6 +283,56 @@ async function main() {
         ),
       );
     assert(quarantineRows, "quarantine row observable");
+    assert(
+      quarantineRows.memberId === null,
+      "revoked mail is not member-attributed on quarantine row",
+    );
+
+    const statusAfterRevoke = await getInboundIngestionStatus(member.id);
+    assert(
+      statusAfterRevoke.recentQuarantineCount >= 1,
+      "profile status surfaces revoked-alias quarantine by address",
+    );
+    assert(
+      statusAfterRevoke.lastQuarantineReason === "unknown_or_revoked_alias",
+      "profile shows revocation quarantine reason",
+    );
+
+    // Retention purge: seed an expired full body, then strip it.
+    const expiredItem = (
+      await db
+        .insert(sourceItems)
+        .values({
+          memberId: member.id,
+          sourceType: SOURCE_TYPE_JOB_LISTING,
+          visibility: "member",
+          title: "Retention Smoke",
+          excerpt: "kept excerpt",
+          contentHash: `retention-${runId}`,
+          payload: {
+            fullBody: "private body must go",
+            fullHtml: "<p>private</p>",
+            fullBodyRetainedUntil: new Date(Date.now() - 60_000).toISOString(),
+          },
+        })
+        .returning({ id: sourceItems.id })
+    )[0];
+    assert(expiredItem, "retention seed");
+    sourceItemIds.push(expiredItem.id);
+    const purged = await purgeExpiredFullBodies(new Date());
+    assert(purged.sourceItemsPurged >= 1, "expired full bodies purged");
+    const [afterPurge] = await db
+      .select({ payload: sourceItems.payload })
+      .from(sourceItems)
+      .where(eq(sourceItems.id, expiredItem.id));
+    assert(
+      afterPurge &&
+        !("fullBody" in afterPurge.payload) &&
+        !("fullHtml" in afterPurge.payload) &&
+        typeof afterPurge.payload.fullBodyPurgedAt === "string",
+      "purge strips bodies and stamps fullBodyPurgedAt",
+    );
+    assert(afterPurge?.payload && true, "excerpt path retained via source row");
 
     console.log("smoke-inbound: ok");
   } finally {

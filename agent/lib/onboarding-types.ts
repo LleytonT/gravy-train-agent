@@ -7,7 +7,10 @@ export type OnboardingInput = {
   location: string;
   interests?: string[];
   seniority?: string;
-  /** Without @ — optional until they /start the bot */
+  /**
+   * Display-only Telegram username metadata. Never used as identity —
+   * linking requires a one-time deep-link token consumed on /start.
+   */
   telegramUsername?: string;
   /** Explicit consent to receive nightly Telegram updates */
   consentUpdates?: boolean;

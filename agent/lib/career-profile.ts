@@ -126,6 +126,7 @@ function emptyMessaging(): MessagingDestination {
     linkedAt: null,
     consentUpdates: false,
     onboardingComplete: false,
+    quietHours: { start: null, end: null, timezone: null },
   };
 }
 
@@ -286,6 +287,7 @@ export function toModelContextMarkdown(
     `- telegramUsername: ${messaging.telegramUsername ? `@${messaging.telegramUsername}` : ""}`,
     `- consentUpdates: ${messaging.consentUpdates}`,
     `- onboardingComplete: ${messaging.onboardingComplete}`,
+    `- quietHours: ${(messaging.quietHours?.start ?? "")}–${(messaging.quietHours?.end ?? "")} ${messaging.quietHours?.timezone ?? ""}`.trimEnd(),
     "",
     document.resume?.text
       ? `## Résumé excerpt\n${document.resume.text.slice(0, 4000)}`
@@ -690,10 +692,39 @@ export async function saveMessagingForMember(
     consentUpdates?: boolean;
     onboardingComplete?: boolean;
     markLinked?: boolean;
+    quietHours?: {
+      start?: string | null;
+      end?: string | null;
+      timezone?: string | null;
+    } | null;
   },
 ): Promise<MessagingDestination> {
   const snapshot = await getMemberContextSnapshot(memberId);
   const current = snapshot.document.messaging ?? emptyMessaging();
+  const currentQuiet = current.quietHours ?? {
+    start: null,
+    end: null,
+    timezone: null,
+  };
+  const nextQuiet =
+    input.quietHours === undefined
+      ? currentQuiet
+      : input.quietHours === null
+        ? { start: null, end: null, timezone: null }
+        : {
+            start:
+              input.quietHours.start !== undefined
+                ? input.quietHours.start?.trim() || null
+                : currentQuiet.start,
+            end:
+              input.quietHours.end !== undefined
+                ? input.quietHours.end?.trim() || null
+                : currentQuiet.end,
+            timezone:
+              input.quietHours.timezone !== undefined
+                ? input.quietHours.timezone?.trim() || null
+                : currentQuiet.timezone,
+          };
   const next: MessagingDestination = {
     telegramChatId:
       input.telegramChatId !== undefined
@@ -716,6 +747,7 @@ export async function saveMessagingForMember(
       input.onboardingComplete !== undefined
         ? input.onboardingComplete
         : current.onboardingComplete,
+    quietHours: nextQuiet,
   };
 
   await applyExplicitProfileChanges(memberId, { messaging: next });

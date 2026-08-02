@@ -10,6 +10,7 @@ import { quarantineInbound } from "../quarantine.js";
 import {
   clipExcerpt,
   fullBodyRetainedUntil,
+  purgeExpiredFullBodies,
   shouldRetainFullBody,
 } from "../retention.js";
 import {
@@ -100,6 +101,11 @@ function listingInputs(
 export async function processInboundJobAlertEmail(
   email: ReceivedEmailContent,
 ): Promise<ProcessInboundEmailResult> {
+  // Opportunistic TTL enforcement — excerpts stay; full bodies are stripped.
+  await purgeExpiredFullBodies().catch(() => {
+    // Never fail inbound ingest because purge could not run.
+  });
+
   const recipients = recipientsOf(email);
   const resolved = await findRecipientAmong(recipients);
   const quarantineKey = `${RESEND_RECEIPT_PROVIDER}:${email.emailId}:quarantine`;
