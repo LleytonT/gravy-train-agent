@@ -153,6 +153,7 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm test:database` | Verify two-member Postgres data isolation |
 | `pnpm test:auth` | Verify Clerk/Eve auth wiring and identity upserts |
 | `pnpm test:career-profile` | Verify structured profile precedence + résumé ingest |
+| `pnpm test:conversation` | Verify canonical conversation bridge + idempotency |
 | `pnpm seed` | Seed fake dossiers + raw items |
 | `pnpm capture` / `capture:dry` | Playwright feed capture |
 | `pnpm capture:profile` | Playwright LinkedIn *own profile* → Career Identity |
@@ -162,4 +163,4 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
 ## Prototype persistence warning
 
-Web and Eve browser access require Clerk. Career profile/preferences/messaging are Postgres-backed (GS-003). Threads still live in `localStorage` until GS-004.
+Web and Eve browser access require Clerk. Career profile/preferences/messaging are Postgres-backed (GS-003), and conversations/messages are server-backed (GS-004). Telegram linking/sync remains GS-005.
