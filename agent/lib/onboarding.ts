@@ -19,7 +19,7 @@ import {
   suggestOutreachAngles,
   type OutreachTargetInput,
 } from "./personalize.js";
-import { telegramDeepLink } from "./messaging.js";
+import { isTelegramConfigured, telegramBotInfoLink } from "./messaging.js";
 import type { CareerIdentity } from "./role-affinity.js";
 import {
   detectRoleFamily,
@@ -184,16 +184,16 @@ export async function completeOnboarding(
     ? ` Interests: ${input.interests.join(", ")}.`
     : "";
 
-  const deepLink = telegramDeepLink();
+  const botLink = telegramBotInfoLink();
   const telegramBits = [
     input.consentUpdates
       ? "I consented to Telegram updates."
-      : "I have not linked Telegram yet.",
+      : "I have not consented to Telegram updates yet.",
     input.telegramUsername
-      ? `My Telegram username is @${input.telegramUsername.replace(/^@/, "")}.`
+      ? `My Telegram username is @${input.telegramUsername.replace(/^@/, "")} (display only — not identity).`
       : null,
-    deepLink
-      ? `If chatId is not saved yet, remind me to open ${deepLink} and tap Start, then call save_messaging_destination when linked.`
+    isTelegramConfigured() && botLink
+      ? `If Telegram is not linked yet, mint a one-time deep link with save_messaging_destination action=link (or the web Profile → Telegram link). Never link by username alone.`
       : "Telegram bot is not configured in env yet — skip messaging link for now.",
   ]
     .filter(Boolean)
