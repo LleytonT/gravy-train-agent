@@ -150,13 +150,18 @@ export async function processSourceItem(input: {
     .limit(1);
 
   if (!existingSignal) {
+    // signals.strength is integer 1–5 (same clamp as repo.saveSignal).
+    const strength = Math.min(
+      5,
+      Math.max(1, Math.round(extraction.confidence * 5)),
+    );
     await db.insert(signals).values({
       id: signalId,
       companyId,
       memberId: input.item.memberId,
       type: "job_alert_listing",
       direction: "positive",
-      strength: extraction.confidence,
+      strength,
       summary: `${extraction.title} at ${extraction.companyName}${extraction.location ? ` (${extraction.location})` : ""}`,
       sourceUrl: extraction.canonicalUrl,
       excerpt: extraction.excerpt.slice(0, 200),

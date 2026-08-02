@@ -160,6 +160,9 @@ async function main() {
       location: "Sydney",
     });
 
+    // Unique company name so cleanup never touches seeded dossiers.
+    const companyName = `Smoke Discovery Co ${runId.slice(0, 8)}`;
+
     await ingestSourceItems([
       {
         memberId: member.id,
@@ -168,10 +171,10 @@ async function main() {
         canonicalUrl: url,
         contentHash: hash,
         title: "Sales Engineer",
-        excerpt: "Sales Engineer at Decagon · Sydney",
+        excerpt: `Sales Engineer at ${companyName} · Sydney`,
         payload: {
           board: "linkedin",
-          company: "Decagon",
+          company: companyName,
           location: "Sydney",
         },
         receipt: {
@@ -191,14 +194,14 @@ async function main() {
         contentHash: listingContentHash({
           url: `https://example.invalid/jobs/${runId}-sf`,
           title: "Sales Engineer",
-          company: "Decagon",
+          company: companyName,
           location: "San Francisco",
         }),
         title: "Sales Engineer",
-        excerpt: "Sales Engineer at Decagon — San Francisco",
+        excerpt: `Sales Engineer at ${companyName} — San Francisco`,
         payload: {
           board: "generic",
-          company: "Decagon",
+          company: companyName,
           location: "San Francisco, CA",
         },
         receipt: {
@@ -350,7 +353,12 @@ async function main() {
         await db
           .delete(companyDossiers)
           .where(inArray(companyDossiers.companyId, companyIds));
-        await db.delete(companies).where(inArray(companies.id, companyIds));
+        // Best-effort: skip if another table still references the company.
+        try {
+          await db.delete(companies).where(inArray(companies.id, companyIds));
+        } catch {
+          // leave shared/seeded companies alone
+        }
       }
       await db
         .delete(messages)
