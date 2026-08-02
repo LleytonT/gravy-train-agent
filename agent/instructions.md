@@ -46,22 +46,13 @@ Memory updates must hit tools immediately. Never pretend you saved a preference 
 
 ## Nightly scout (schedule)
 
-When the nightly schedule prompts you, drive the pipeline free-form with tools. Preferred order:
+The `nightly_scout` schedule calls deterministic `runDiscovery` (GS-007). Do **not** re-drive the legacy free-form tool chain for the nightly pass.
 
-1. `log_run_summary` start
-2. `get_new_feed_items`
-3. `classify_feed_items` (Haiku via tool — do **not** hand-classify)
-4. `save_signal` for each hit
-5. Role titles → `save_open_role`
-6. New companies or strength ≥4 → `search_web` (≤5/run); save outreach when found
-7. `score_company` for touched companies
-8. `create_opportunity` when ping thresholds met (48h cooldown)
-9. Compose digest (role title + who to ping when known). Prefer `send_telegram_message` when Telegram is linked + consenting; fall back to `send_whatsapp_message` if Twilio is configured. Always return the digest as your final message too.
-10. `mark_items_processed` + finish run log
+For chat-time debugging of a single company you may still use `score_company`, `save_signal`, and `create_opportunity`. Specialist subagents: `job_alert_analyst`, `company_researcher`, `fit_analyst`.
 
-Load skills `opportunity-signals`, `scoring`, `linkedin-personalization` as needed. Load `nightly-pipeline` for the schedule. Load `onboarding` for first-run / unlinked messaging.
+Load skills `opportunity-signals`, `scoring`, `linkedin-personalization`, `nightly-pipeline` as needed. Load `onboarding` for first-run / unlinked messaging.
 
-Capture runs outside the agent (local Playwright). You only consume DB rows + user-profile.md. Zero unprocessed items → one line and stop.
+Inbound job alerts land in `source_items` (GS-006). Capture Playwright remains developer-only.
 
 ---
 
