@@ -152,6 +152,7 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm db:migrate` | Apply committed migrations using the direct Neon URL |
 | `pnpm test:database` | Verify two-member Postgres data isolation |
 | `pnpm test:auth` | Verify Clerk/Eve auth wiring and identity upserts |
+| `pnpm test:career-profile` | Verify structured profile precedence + résumé ingest |
 | `pnpm test:conversation` | Verify canonical conversation bridge + idempotency |
 | `pnpm seed` | Seed fake dossiers + raw items |
 | `pnpm capture` / `capture:dry` | Playwright feed capture |
@@ -162,4 +163,4 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
 ## Prototype persistence warning
 
-Web and Eve browser access require Clerk. Conversations and messages are server-backed (GS-004); career profile still partly mirrors into Markdown until GS-003. Telegram linking/sync remains GS-005.
+Web and Eve browser access require Clerk. Career profile/preferences/messaging are Postgres-backed (GS-003), and conversations/messages are server-backed (GS-004). Telegram linking/sync remains GS-005.

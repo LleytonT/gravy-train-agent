@@ -52,7 +52,7 @@ export function ChatPanel({
   autoKickoffMessage,
   onKickoffSent,
 }: ChatPanelProps) {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const [durableMessages, setDurableMessages] =
     useState<DurableChatMessage[]>(initialMessages);
   const [bridgeError, setBridgeError] = useState<string | null>(null);
@@ -62,6 +62,9 @@ export function ChatPanel({
     initialSession,
     auth: {
       bearer: async () => {
+        if (!isLoaded) {
+          throw new Error("Waiting for sign-in before starting chat");
+        }
         const token = await getToken();
         if (!token) {
           throw new Error("Sign in required to chat with Gravy Scout");
@@ -142,7 +145,7 @@ export function ChatPanel({
   }, [agent.session, conversation.id]);
 
   sendMessageRef.current = async (message: string) => {
-    if (!isSignedIn) {
+    if (!isLoaded || !isSignedIn) {
       throw new Error("Sign in required to chat with Gravy Scout");
     }
     setBridgeError(null);
@@ -175,6 +178,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!autoKickoffMessage) return;
+    if (!isLoaded || !isSignedIn) return;
     if (kickoffStarted.current) return;
     if (durableMessages.length > 0) return;
     if (liveMessages.length > 0) return;
@@ -186,11 +190,16 @@ export function ChatPanel({
   }, [
     autoKickoffMessage,
     durableMessages.length,
+    isLoaded,
+    isSignedIn,
     liveMessages.length,
     onKickoffSent,
   ]);
 
   async function sendMessage(message: string) {
+    if (!isLoaded || !isSignedIn) {
+      throw new Error("Sign in required to chat with Gravy Scout");
+    }
     await sendMessageRef.current(message);
   }
 

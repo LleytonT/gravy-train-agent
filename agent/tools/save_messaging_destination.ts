@@ -1,6 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
+import { requireMemberCaller } from "../lib/identity.js";
 import {
   getMessagingDestination,
   saveMessagingDestination,
@@ -9,7 +10,7 @@ import {
 
 export default defineTool({
   description:
-    "Save or update the user's Telegram messaging destination (chatId, username, consent, onboardingComplete). Call when they link Telegram, agree to updates, or finish guided setup. Also use action=read to check link status.",
+    "Save or update the member's Telegram messaging destination (chatId, username, consent, onboardingComplete). Call when they link Telegram, agree to updates, or finish guided setup. Also use action=read to check link status.",
   inputSchema: z.object({
     action: z.enum(["read", "save"]).default("save"),
     telegramChatId: z.string().optional(),
@@ -17,9 +18,11 @@ export default defineTool({
     consentUpdates: z.boolean().optional(),
     onboardingComplete: z.boolean().optional(),
   }),
-  async execute(input) {
+  async execute(input, ctx) {
+    const { memberId } = requireMemberCaller(ctx);
+
     if (input.action === "read") {
-      const dest = getMessagingDestination();
+      const dest = await getMessagingDestination(memberId);
       return {
         ...dest,
         deepLink: telegramDeepLink(),
@@ -28,7 +31,7 @@ export default defineTool({
       };
     }
 
-    const dest = saveMessagingDestination({
+    const dest = await saveMessagingDestination(memberId, {
       telegramChatId: input.telegramChatId,
       telegramUsername: input.telegramUsername,
       consentUpdates: input.consentUpdates,

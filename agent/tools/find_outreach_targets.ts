@@ -1,14 +1,14 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
+import { getMemberContextSnapshot } from "../lib/career-profile.js";
 import { ensureSchema } from "../lib/db/client.js";
+import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 import {
   suggestOutreachAngles,
   type OutreachTargetInput,
 } from "../lib/personalize.js";
-import { readUserProfile } from "../lib/profile.js";
-import { parseCareerIdentityFromProfile } from "../lib/role-affinity.js";
 import { outreachKinds } from "../lib/db/schema.js";
 
 /**
@@ -29,8 +29,9 @@ export default defineTool({
     whyReachOut: z.string().optional(),
     relatedRoleTitle: z.string().optional(),
   }),
-  async execute(input) {
+  async execute(input, ctx) {
     await ensureSchema();
+    const { memberId } = requireMemberCaller(ctx);
     const company =
       (await repo.getCompanyByName(input.company)) ??
       (await repo.getCompanyById(input.company));
@@ -83,7 +84,8 @@ export default defineTool({
       kind: input.kind,
     });
 
-    const identity = parseCareerIdentityFromProfile(readUserProfile());
+    const snapshot = await getMemberContextSnapshot(memberId);
+    const identity = snapshot.identity;
     const stubRec = {
       companyId: company.id,
       companyName: company.name,
