@@ -6,6 +6,10 @@ import {
   scoringPrefsFromSnapshot,
 } from "../lib/career-profile.js";
 import { ensureSchema } from "../lib/db/client.js";
+import {
+  fixtureScoreCompany,
+  isEvalFixture,
+} from "../lib/eval-fixture/index.js";
 import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 import { scoreCompany } from "../lib/scoring.js";
@@ -17,6 +21,10 @@ export default defineTool({
     company: z.string().min(1),
   }),
   async execute({ company }, ctx) {
+    if (isEvalFixture()) {
+      return fixtureScoreCompany({ company }, ctx);
+    }
+
     await ensureSchema();
     const { memberId } = requireMemberCaller(ctx);
     const dossier = await repo.getCompanyDossier(company);

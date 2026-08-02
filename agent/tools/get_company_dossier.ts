@@ -2,6 +2,10 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { ensureSchema } from "../lib/db/client.js";
+import {
+  fixtureGetCompanyDossier,
+  isEvalFixture,
+} from "../lib/eval-fixture/index.js";
 import { repo } from "../lib/db/repo.js";
 
 export default defineTool({
@@ -11,6 +15,10 @@ export default defineTool({
     company: z.string().min(1).describe("Company id or name"),
   }),
   async execute({ company }) {
+    if (isEvalFixture()) {
+      return fixtureGetCompanyDossier({ company });
+    }
+
     await ensureSchema();
     const dossier = await repo.getCompanyDossier(company);
     if (!dossier) {

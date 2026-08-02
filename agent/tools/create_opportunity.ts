@@ -2,6 +2,10 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { ensureSchema } from "../lib/db/client.js";
+import {
+  fixtureCreateOpportunity,
+  isEvalFixture,
+} from "../lib/eval-fixture/index.js";
 import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 
@@ -16,6 +20,10 @@ export default defineTool({
     markPinged: z.boolean().optional().default(true),
   }),
   async execute({ company, headline, score, pingTier, markPinged }, ctx) {
+    if (isEvalFixture()) {
+      return fixtureCreateOpportunity({ company, headline, score }, ctx);
+    }
+
     await ensureSchema();
     const { memberId } = requireMemberCaller(ctx);
     const dossier = await repo.getCompanyDossier(company);
