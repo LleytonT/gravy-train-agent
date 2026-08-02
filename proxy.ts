@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/eve/v1/health",
   "/api/messaging-config",
+  // Resend inbound webhooks are verified by Svix signature, not Clerk.
+  "/api/inbound/resend",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

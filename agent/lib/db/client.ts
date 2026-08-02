@@ -62,6 +62,12 @@ export async function ensureSchema(): Promise<void> {
     if (triggers.rows.length !== 1) {
       throw new Error("latest ownership migration is missing");
     }
+    const inbound = await db.execute<{ tableName: string }>(
+      sql`select to_regclass('public.inbound_quarantine')::text as "tableName"`,
+    );
+    if (inbound.rows[0]?.tableName !== "inbound_quarantine") {
+      throw new Error("inbound quarantine migration is missing");
+    }
   } catch (error) {
     throw new Error(
       "Database schema is unavailable or out of date. Run `pnpm db:migrate` before serving traffic.",

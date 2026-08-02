@@ -20,7 +20,7 @@ Required variables:
 ## Request flow
 
 1. `proxy.ts` runs `clerkMiddleware` and calls `auth.protect()` on every non-public route.
-2. Public routes: `/how-it-works`, `/sign-in`, `/sign-up`, `/eve/v1/health`, `/api/messaging-config`.
+2. Public routes: `/how-it-works`, `/sign-in`, `/sign-up`, `/eve/v1/health`, `/api/messaging-config`, `/api/inbound/resend` (Resend Svix signature).
 3. Protected Next route handlers call `requireAuthenticatedMember()` (`lib/auth/member.ts`), which upserts `members.external_auth_id = Clerk userId`.
 4. Telegram linking uses authenticated `POST /api/telegram/link` (see `docs/telegram-link.md`); Eve's Telegram webhook remains verified by `TELEGRAM_WEBHOOK_SECRET_TOKEN`.
 5. The web chat client sends a Clerk session JWT as `Authorization: Bearer …` to Eve.
@@ -44,6 +44,7 @@ Kickoff messages wait for Clerk `isLoaded` + `isSignedIn` before calling Eve.
 ```bash
 pnpm test:auth
 pnpm test:database
+pnpm test:inbound
 pnpm typecheck
 pnpm build
 ```

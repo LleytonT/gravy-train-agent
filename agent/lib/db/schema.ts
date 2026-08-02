@@ -156,7 +156,15 @@ export const connections = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("idx_connections_member_id").on(table.memberId)],
+  (table) => [
+    index("idx_connections_member_id").on(table.memberId),
+    uniqueIndex("uq_connections_active_inbound_address")
+      .on(table.provider, table.externalAccountId)
+      .where(sql`${table.provider} = 'inbound_email' AND ${table.status} = 'active'`),
+    uniqueIndex("uq_connections_member_active_inbound")
+      .on(table.memberId)
+      .where(sql`${table.provider} = 'inbound_email' AND ${table.status} = 'active'`),
+  ],
 );
 
 export const careerProfiles = pgTable(
@@ -389,6 +397,35 @@ export const sourceItemReceipts = pgTable(
       .default({}),
   },
   (table) => [index("idx_source_item_receipts_item").on(table.sourceItemId)],
+);
+
+/**
+ * Observable quarantine for inbound mail that could not be attributed or parsed.
+ * Invalid mail is never silently dropped.
+ */
+export const inboundQuarantine = pgTable(
+  "inbound_quarantine",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    memberId: uuid("member_id").references(() => members.id, {
+      onDelete: "set null",
+    }),
+    provider: text("provider").notNull(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    reason: text("reason").notNull(),
+    recipientAddress: text("recipient_address"),
+    subject: text("subject"),
+    excerpt: text("excerpt").notNull().default(""),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("idx_inbound_quarantine_member_id").on(table.memberId),
+    index("idx_inbound_quarantine_created_at").on(table.createdAt),
+  ],
 );
 
 export const companies = pgTable(
@@ -741,6 +778,7 @@ export const schema = {
   rawItems,
   sourceItems,
   sourceItemReceipts,
+  inboundQuarantine,
   companies,
   companyAliases,
   signals,

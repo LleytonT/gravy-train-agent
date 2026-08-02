@@ -57,6 +57,7 @@ pnpm test:auth        # identity upserts + Eve anonymous auth removed
 pnpm test:career-profile
 pnpm test:conversation # canonical conversation bridge + idempotency
 pnpm test:telegram-link # secure Telegram link tokens + revocation
+pnpm test:inbound     # job-alert parse fixtures, webhook verify, ingest dedupe
 pnpm test:scoring
 pnpm typecheck
 pnpm build
