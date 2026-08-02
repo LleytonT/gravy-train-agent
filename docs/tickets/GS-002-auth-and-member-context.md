@@ -2,6 +2,8 @@
 
 Blocked by: GS-001.
 
+Status: implemented on branch (Clerk Marketplace + identity module + Eve auth walk).
+
 ## Goal
 
 Give every web request and Eve turn a verified internal `memberId`, and remove anonymous production access.

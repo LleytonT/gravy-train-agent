@@ -11,6 +11,11 @@ export type OnboardingInput = {
   telegramUsername?: string;
   /** Explicit consent to receive nightly Telegram updates */
   consentUpdates?: boolean;
+  /**
+   * Internal member id from the identity module only.
+   * Never accept this from an untrusted client body.
+   */
+  memberId: string;
 };
 
 export type OnboardingOutreach = {

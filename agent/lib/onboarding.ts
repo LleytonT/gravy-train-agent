@@ -7,7 +7,10 @@
  * message tells the Eve agent to call ingest_linkedin_profile into its sandbox.
  */
 
-import { ensureSchema } from "./db/client.js";
+import { eq } from "drizzle-orm";
+
+import { ensureSchema, getDb } from "./db/client.js";
+import { careerProfiles } from "./db/schema.js";
 import { repo } from "./db/repo.js";
 import type { OnboardingInput, OnboardingMatch } from "./onboarding-types.js";
 import {
@@ -115,10 +118,58 @@ function tryPersistProfile(
   }
 }
 
+async function upsertCareerProfileStub(
+  memberId: string,
+  identity: CareerIdentity,
+  interests?: string[],
+): Promise<void> {
+  const db = getDb();
+  const profile = {
+    roleFamily: identity.roleFamily,
+    geographyHints: identity.geographyHints,
+    interests: interests ?? [],
+    seniority: identity.seniority ?? null,
+  };
+  const existing = await db
+    .select({ id: careerProfiles.id, version: careerProfiles.version })
+    .from(careerProfiles)
+    .where(eq(careerProfiles.memberId, memberId))
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(careerProfiles)
+      .set({
+        currentTitle: identity.currentTitle,
+        currentCompany: identity.currentCompany,
+        location: identity.location,
+        summary: identity.summary ?? null,
+        profile,
+        version: existing[0].version + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(careerProfiles.id, existing[0].id));
+    return;
+  }
+
+  await db.insert(careerProfiles).values({
+    memberId,
+    currentTitle: identity.currentTitle,
+    currentCompany: identity.currentCompany,
+    location: identity.location,
+    summary: identity.summary ?? null,
+    profile,
+  });
+}
+
 export async function completeOnboarding(
   input: OnboardingInput,
 ): Promise<OnboardingResult> {
   await ensureSchema();
+
+  if (!input.memberId?.trim()) {
+    throw new Error("Authenticated memberId is required for onboarding");
+  }
 
   const roleFamily = detectRoleFamily(input.currentTitle);
   const geographyHints = extractGeographyHints(
@@ -145,6 +196,15 @@ export async function completeOnboarding(
     telegramUsername: input.telegramUsername,
     consentUpdates: input.consentUpdates,
   });
+
+  try {
+    await upsertCareerProfileStub(input.memberId, identity, input.interests);
+  } catch (err) {
+    console.warn(
+      "[onboarding] career profile stub skipped:",
+      err instanceof Error ? err.message : err,
+    );
+  }
 
   let profileMarkdown = "";
   try {

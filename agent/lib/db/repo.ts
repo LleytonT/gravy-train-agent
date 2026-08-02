@@ -609,6 +609,8 @@ export const repo = {
 
   async listOpportunities(options?: {
     memberId?: string;
+    /** When true with memberId, also include shared (null-owner) seed rows. */
+    includeShared?: boolean;
     status?: OpportunityStatus;
     companyId?: string;
     limit?: number;
@@ -620,13 +622,21 @@ export const repo = {
       conditions.push(eq(opportunities.status, options.status));
     }
     if (options?.memberId) {
-      conditions.push(eq(opportunities.memberId, options.memberId));
+      if (options.includeShared) {
+        conditions.push(
+          or(
+            isNull(opportunities.memberId),
+            eq(opportunities.memberId, options.memberId),
+          )!,
+        );
+      } else {
+        conditions.push(eq(opportunities.memberId, options.memberId));
+      }
+    } else {
+      conditions.push(isNull(opportunities.memberId));
     }
     if (options?.companyId) {
       conditions.push(eq(opportunities.companyId, options.companyId));
-    }
-    if (!options?.memberId) {
-      conditions.push(isNull(opportunities.memberId));
     }
 
     const query = db.select().from(opportunities);
