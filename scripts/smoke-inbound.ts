@@ -42,7 +42,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 function fixture(name: string): string {
   return readFileSync(
-    resolve("agent/lib/ingestion/fixtures", name),
+    resolve("scripts/fixtures/inbound", name),
     "utf8",
   );
 }
