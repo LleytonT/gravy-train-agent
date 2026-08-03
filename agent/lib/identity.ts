@@ -498,3 +498,110 @@ export async function hasActiveTelegramIdentity(
   const identity = await getTelegramIdentityForMember(memberId);
   return Boolean(identity);
 }
+
+export function telegramExternalAuthId(telegramUserId: string): string {
+  return `telegram:${telegramUserId.trim()}`;
+}
+
+/**
+ * Create or resolve a member from a verified Telegram Login Widget principal.
+ * Binds (or refreshes) the Telegram channel identity in the same step so web
+ * and Telegram share one member without a separate deep-link hop.
+ */
+export async function upsertMemberFromTelegramLogin(input: {
+  telegramUserId: string;
+  username?: string | null;
+  displayName?: string | null;
+}): Promise<MemberRecord> {
+  const telegramUserId = input.telegramUserId.trim();
+  if (!telegramUserId || !/^\d+$/.test(telegramUserId)) {
+    throw new ChannelLinkError(
+      "malformed",
+      "A verified Telegram user ID is required",
+    );
+  }
+
+  const username =
+    normalizeOptional(input.username)?.replace(/^@/, "") ?? null;
+  const displayName = normalizeOptional(input.displayName);
+  const externalAuthId = telegramExternalAuthId(telegramUserId);
+
+  const existingByTelegram = await findMemberByTelegramUserId(telegramUserId);
+  const member =
+    existingByTelegram ??
+    (await upsertMemberFromExternalAuth({
+      externalAuthId,
+      displayName,
+    }));
+
+  // Keep external_auth_id stable for Telegram-origin members.
+  if (!existingByTelegram && member.externalAuthId !== externalAuthId) {
+    const db = getDb();
+    await db
+      .update(members)
+      .set({
+        externalAuthId,
+        displayName: displayName ?? member.displayName,
+        updatedAt: new Date(),
+      })
+      .where(eq(members.id, member.id));
+  } else if (displayName && displayName !== member.displayName) {
+    const db = getDb();
+    await db
+      .update(members)
+      .set({ displayName, updatedAt: new Date() })
+      .where(eq(members.id, member.id));
+  }
+
+  const db = getDb();
+  const now = new Date();
+  const [existingIdentity] = await db
+    .select()
+    .from(channelIdentities)
+    .where(
+      and(
+        eq(channelIdentities.provider, "telegram"),
+        eq(channelIdentities.externalUserId, telegramUserId),
+      ),
+    )
+    .limit(1);
+
+  if (
+    existingIdentity &&
+    !existingIdentity.revokedAt &&
+    existingIdentity.memberId !== member.id
+  ) {
+    throw new ChannelLinkError(
+      "conflict",
+      "This Telegram account is already linked to another member",
+      409,
+    );
+  }
+
+  if (existingIdentity) {
+    await db
+      .update(channelIdentities)
+      .set({
+        memberId: member.id,
+        username,
+        linkedAt: existingIdentity.revokedAt ? now : existingIdentity.linkedAt,
+        revokedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(channelIdentities.id, existingIdentity.id));
+  } else {
+    await db.insert(channelIdentities).values({
+      memberId: member.id,
+      provider: "telegram",
+      externalUserId: telegramUserId,
+      username,
+      linkedAt: now,
+    });
+  }
+
+  return (
+    (await findMemberByExternalAuthId(externalAuthId)) ??
+    (await findMemberByTelegramUserId(telegramUserId)) ??
+    member
+  );
+}

@@ -32,8 +32,12 @@ async function main() {
   );
   assert(!/\bnone\s*\(/.test(eveChannel), "Eve channel still admits none()");
   assert(
+    eveChannel.includes("memberSessionAuth"),
+    "Eve channel missing memberSessionAuth() for Telegram Login sessions",
+  );
+  assert(
     eveChannel.includes("clerkMemberAuth"),
-    "Eve channel missing clerkMemberAuth()",
+    "Eve channel missing optional clerkMemberAuth()",
   );
   assert(
     eveChannel.includes("localDevMemberAuth") ||
@@ -43,7 +47,14 @@ async function main() {
 
   const proxy = readFileSync(resolve("proxy.ts"), "utf8");
   assert(proxy.includes("clerkMiddleware"), "proxy.ts missing clerkMiddleware");
-  assert(proxy.includes("auth.protect"), "proxy.ts missing auth.protect");
+  assert(
+    proxy.includes("auth.protect") || proxy.includes("hasMemberSession"),
+    "proxy.ts must protect the app shell via member session or Clerk",
+  );
+  assert(
+    proxy.includes("/get-started"),
+    "proxy.ts must keep progressive onboarding public",
+  );
 
   await ensureSchema();
   const db = getDb();

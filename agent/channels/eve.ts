@@ -16,6 +16,7 @@ import {
   LOCAL_DEV_EXTERNAL_AUTH_ID,
   upsertMemberFromExternalAuth,
 } from "../lib/identity.js";
+import { memberSessionAuth } from "../lib/member-session-auth.js";
 
 function hostLooksLoopback(request: Request): boolean {
   if (isLoopbackRequest(request)) return true;
@@ -94,7 +95,9 @@ function localDevMemberAuth(): AuthFn<Request> {
 
 export default eveChannel({
   auth: [
-    // Browser and same-origin web clients authenticated by Clerk.
+    // Telegram Login (primary web) and other minted member-session JWTs.
+    memberSessionAuth(),
+    // Optional Clerk sessions for members who prefer email sign-in.
     clerkMemberAuth(),
     // Vercel CLI / deployment-to-deployment callers.
     vercelOidc(),

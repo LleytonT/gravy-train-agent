@@ -10,10 +10,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@clerk/nextjs";
 import type { SessionState } from "eve/client";
 import { useEveAgent } from "eve/react";
 import { useEffect, useRef, useState } from "react";
+
+import { fetchEveBearerToken } from "@/components/auth/member-session";
 
 import { ChatComposer } from "./chat-composer";
 import { ChatEmpty } from "./chat-empty";
@@ -52,24 +53,27 @@ export function ChatPanel({
   autoKickoffMessage,
   onKickoffSent,
 }: ChatPanelProps) {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
   const [durableMessages, setDurableMessages] =
     useState<DurableChatMessage[]>(initialMessages);
   const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [memberSessionReady, setMemberSessionReady] = useState(false);
+
+  useEffect(() => {
+    void fetchEveBearerToken()
+      .then((token) => setMemberSessionReady(Boolean(token)))
+      .catch(() => setMemberSessionReady(false));
+  }, []);
 
   const agent = useEveAgent({
     initialEvents: [],
     initialSession,
     auth: {
       bearer: async () => {
-        if (!isLoaded) {
-          throw new Error("Waiting for sign-in before starting chat");
+        const memberToken = await fetchEveBearerToken();
+        if (!memberToken) {
+          throw new Error("Verify with Telegram to chat with Gravy Scout");
         }
-        const token = await getToken();
-        if (!token) {
-          throw new Error("Sign in required to chat with Gravy Scout");
-        }
-        return token;
+        return memberToken;
       },
     },
     async onFinish(snapshot) {
@@ -144,9 +148,11 @@ export function ChatPanel({
     };
   }, [agent.session, conversation.id]);
 
+  const canChat = memberSessionReady;
+
   sendMessageRef.current = async (message: string) => {
-    if (!isLoaded || !isSignedIn) {
-      throw new Error("Sign in required to chat with Gravy Scout");
+    if (!canChat) {
+      throw new Error("Verify with Telegram to chat with Gravy Scout");
     }
     setBridgeError(null);
     const idempotencyKey =
@@ -178,7 +184,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!autoKickoffMessage) return;
-    if (!isLoaded || !isSignedIn) return;
+    if (!canChat) return;
     if (kickoffStarted.current) return;
     if (durableMessages.length > 0) return;
     if (liveMessages.length > 0) return;
@@ -189,16 +195,15 @@ export function ChatPanel({
     });
   }, [
     autoKickoffMessage,
+    canChat,
     durableMessages.length,
-    isLoaded,
-    isSignedIn,
     liveMessages.length,
     onKickoffSent,
   ]);
 
   async function sendMessage(message: string) {
-    if (!isLoaded || !isSignedIn) {
-      throw new Error("Sign in required to chat with Gravy Scout");
+    if (!canChat) {
+      throw new Error("Verify with Telegram to chat with Gravy Scout");
     }
     await sendMessageRef.current(message);
   }

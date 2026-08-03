@@ -36,15 +36,9 @@ export type OnboardingResult = {
   profilePersisted: boolean;
 };
 
-export async function completeOnboarding(
-  input: OnboardingInput,
-): Promise<OnboardingResult> {
-  await ensureSchema();
+export type OnboardingPreviewInput = Omit<OnboardingInput, "memberId">;
 
-  if (!input.memberId?.trim()) {
-    throw new Error("Authenticated memberId is required for onboarding");
-  }
-
+function buildIdentity(input: OnboardingPreviewInput): CareerIdentity {
   const roleFamily = detectRoleFamily(input.currentTitle);
   const geographyHints = extractGeographyHints(
     input.location,
@@ -52,7 +46,7 @@ export async function completeOnboarding(
     input.currentCompany,
   );
   const headline = `${input.currentTitle} at ${input.currentCompany}`;
-  const identity: CareerIdentity = {
+  return {
     name: input.name?.trim() || undefined,
     headline,
     currentTitle: input.currentTitle.trim(),
@@ -65,44 +59,32 @@ export async function completeOnboarding(
       ? `Interests: ${input.interests.join(", ")}`
       : undefined,
   };
+}
 
-  let profilePersisted = false;
-  try {
-    await applyExplicitProfileChanges(input.memberId, {
-      name: identity.name,
-      headline: identity.headline,
-      currentTitle: identity.currentTitle,
-      currentCompany: identity.currentCompany,
-      location: identity.location,
-      seniority: identity.seniority,
-      summary: identity.summary,
-      interests: input.interests,
-      messaging: {
-        telegramUsername: input.telegramUsername?.replace(/^@/, "") ?? null,
-        consentUpdates: input.consentUpdates ?? false,
-        onboardingComplete: false,
-      },
-    });
-    profilePersisted = true;
-  } catch (err) {
-    console.warn(
-      "[onboarding] structured profile persist failed:",
-      err instanceof Error ? err.message : err,
-    );
-  }
+/**
+ * Public preview: career snapshot → first recommendations without auth.
+ * Does not persist profile state.
+ */
+export async function previewOnboarding(
+  input: OnboardingPreviewInput,
+): Promise<{ identity: CareerIdentity; matches: OnboardingMatch[] }> {
+  await ensureSchema();
+  const identity = buildIdentity(input);
+  const matches = await matchRolesForIdentity(identity, null);
+  return { identity, matches };
+}
 
-  const snapshot = profilePersisted
-    ? await getMemberContextSnapshot(input.memberId)
-    : null;
-  const prefs = snapshot
-    ? scoringPrefsFromSnapshot(snapshot)
-    : {
-        preferHyperscalers: false,
-        avoidSeedStage: false,
-        ignoreCategories: [] as string[],
-        roleFamily: identity.roleFamily,
-        geographyHints: identity.geographyHints,
-      };
+async function matchRolesForIdentity(
+  identity: CareerIdentity,
+  profileMarkdown: string | null,
+): Promise<OnboardingMatch[]> {
+  const prefs = {
+    preferHyperscalers: false,
+    avoidSeedStage: false,
+    ignoreCategories: [] as string[],
+    roleFamily: identity.roleFamily,
+    geographyHints: identity.geographyHints,
+  };
 
   const companies = await repo.listCompanies();
   const signalsByCompany = new Map();
@@ -140,7 +122,7 @@ export async function completeOnboarding(
   }
 
   const recs = buildRoleRecommendations({
-    profileMarkdown: snapshot?.modelContextMarkdown ?? "",
+    profileMarkdown: profileMarkdown ?? "",
     companies,
     signalsByCompany,
     scoresByCompany,
@@ -164,21 +146,64 @@ export async function completeOnboarding(
     });
   }
 
-  const matches: OnboardingMatch[] = recs.recommendations
-    .slice(0, 5)
-    .map((rec) => {
-      const outreach = pickOutreachForRecommendation({
-        recommendation: rec,
-        targets: targetInputs,
-      }).map((t) => ({
-        name: t.name,
-        title: t.title,
-        kind: t.kind,
-        linkedInUrl: t.linkedInUrl,
-        angle: suggestOutreachAngles(identity, rec, t),
-      }));
-      return { ...rec, outreach };
+  return recs.recommendations.slice(0, 5).map((rec) => {
+    const outreach = pickOutreachForRecommendation({
+      recommendation: rec,
+      targets: targetInputs,
+    }).map((t) => ({
+      name: t.name,
+      title: t.title,
+      kind: t.kind,
+      linkedInUrl: t.linkedInUrl,
+      angle: suggestOutreachAngles(identity, rec, t),
+    }));
+    return { ...rec, outreach };
+  });
+}
+
+export async function completeOnboarding(
+  input: OnboardingInput,
+): Promise<OnboardingResult> {
+  await ensureSchema();
+
+  if (!input.memberId?.trim()) {
+    throw new Error("Authenticated memberId is required for onboarding");
+  }
+
+  const identity = buildIdentity(input);
+
+  let profilePersisted = false;
+  try {
+    await applyExplicitProfileChanges(input.memberId, {
+      name: identity.name,
+      headline: identity.headline,
+      currentTitle: identity.currentTitle,
+      currentCompany: identity.currentCompany,
+      location: identity.location,
+      seniority: identity.seniority,
+      summary: identity.summary,
+      interests: input.interests,
+      messaging: {
+        telegramUsername: input.telegramUsername?.replace(/^@/, "") ?? null,
+        consentUpdates: input.consentUpdates ?? false,
+        onboardingComplete: false,
+      },
     });
+    profilePersisted = true;
+  } catch (err) {
+    console.warn(
+      "[onboarding] structured profile persist failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  const snapshot = profilePersisted
+    ? await getMemberContextSnapshot(input.memberId)
+    : null;
+  const matches = await matchRolesForIdentity(
+    identity,
+    snapshot?.modelContextMarkdown ?? null,
+  );
 
   const interestPhrase = input.interests?.length
     ? ` Interests: ${input.interests.join(", ")}.`
@@ -193,7 +218,7 @@ export async function completeOnboarding(
       ? `My Telegram username is @${input.telegramUsername.replace(/^@/, "")} (display only — not identity).`
       : null,
     isTelegramConfigured() && botLink
-      ? `If Telegram is not linked yet, mint a one-time deep link with save_messaging_destination action=link (or the web Profile → Telegram link). Never link by username alone.`
+      ? `Telegram is already verified for this member when signed in via Telegram Login. Deep-link minting remains available for channel reconnect.`
       : "Telegram bot is not configured in env yet — skip messaging link for now.",
   ]
     .filter(Boolean)
