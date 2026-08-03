@@ -160,6 +160,8 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm capture:profile` | Playwright LinkedIn *own profile* → Career Identity |
 | `pnpm typecheck` | `tsc --noEmit` (web + agent) |
 | `pnpm test:scoring` | Smoke test scoring + role personalization |
+| `pnpm test:evals` | Eve deterministic eval suite (GS-009 fixture agent) |
+| `pnpm test:evals:list` | List discovered Eve eval ids |
 | `pnpm exec tsx scripts/verify-dossier.ts` | Confirm seed dossiers |
 
 ## Prototype persistence warning

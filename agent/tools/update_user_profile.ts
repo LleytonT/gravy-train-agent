@@ -7,6 +7,10 @@ import {
   parsePreferenceAssignments,
   setExplicitPreference,
 } from "../lib/career-profile.js";
+import {
+  fixtureUpdateUserProfile,
+  isEvalFixture,
+} from "../lib/eval-fixture/index.js";
 import { requireMemberCaller } from "../lib/identity.js";
 
 export default defineTool({
@@ -32,6 +36,10 @@ export default defineTool({
     interests: z.array(z.string()).optional(),
   }),
   async execute(input, ctx) {
+    if (isEvalFixture()) {
+      return fixtureUpdateUserProfile(input, ctx);
+    }
+
     const { memberId } = requireMemberCaller(ctx);
 
     if (input.action === "read") {

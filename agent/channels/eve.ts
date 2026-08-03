@@ -9,6 +9,10 @@ import {
 
 import { clerkMemberAuth } from "../lib/clerk-auth.js";
 import {
+  FIXTURE_MEMBER_ID,
+  isEvalFixture,
+} from "../lib/eval-fixture/index.js";
+import {
   LOCAL_DEV_EXTERNAL_AUTH_ID,
   upsertMemberFromExternalAuth,
 } from "../lib/identity.js";
@@ -49,6 +53,19 @@ function localDevMemberAuth(): AuthFn<Request> {
           }
         : null);
     if (!session) return null;
+
+    // Fixture evals must not require Neon — map loopback to a stable member.
+    if (isEvalFixture()) {
+      return {
+        ...session,
+        principalType: "user",
+        attributes: {
+          ...session.attributes,
+          memberId: FIXTURE_MEMBER_ID,
+          externalAuthId: LOCAL_DEV_EXTERNAL_AUTH_ID,
+        },
+      };
+    }
 
     try {
       const member = await upsertMemberFromExternalAuth({

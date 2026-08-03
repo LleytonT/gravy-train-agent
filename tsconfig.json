@@ -41,6 +41,7 @@
     "agent/channels/**/*.ts",
     "agent/schedules/**/*.ts",
     "agent/agent.ts",
+    "evals/**/*.ts",
     "capture/**/*.ts",
     "scripts/**/*.ts",
     ".next/dev/types/**/*.ts"

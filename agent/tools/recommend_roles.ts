@@ -6,6 +6,10 @@ import {
   scoringPrefsFromSnapshot,
 } from "../lib/career-profile.js";
 import { ensureSchema } from "../lib/db/client.js";
+import {
+  fixtureRecommendRoles,
+  isEvalFixture,
+} from "../lib/eval-fixture/index.js";
 import { requireMemberCaller } from "../lib/identity.js";
 import { repo } from "../lib/db/repo.js";
 import {
@@ -32,6 +36,10 @@ export default defineTool({
       .describe("Optional: focus recommendations on one company"),
   }),
   async execute({ limit, includeOutreach, company }, ctx) {
+    if (isEvalFixture()) {
+      return fixtureRecommendRoles({ limit, includeOutreach, company }, ctx);
+    }
+
     await ensureSchema();
     const { memberId } = requireMemberCaller(ctx);
     const snapshot = await getMemberContextSnapshot(memberId);
