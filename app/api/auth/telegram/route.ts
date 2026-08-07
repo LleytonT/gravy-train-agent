@@ -6,6 +6,7 @@ import { signMemberSessionToken } from "@/agent/lib/member-session";
 import {
   TelegramLoginError,
   isTelegramLoginConfigured,
+  probeTelegramLoginDomain,
   verifyTelegramLoginPayload,
 } from "@/agent/lib/telegram-login";
 import {
@@ -24,9 +25,19 @@ const bodySchema = z.object({
 });
 
 export async function GET() {
+  const configured = isTelegramLoginConfigured();
+  const botUsername =
+    process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "") ?? null;
+  const domain = configured ? await probeTelegramLoginDomain({ botUsername }) : null;
   return NextResponse.json({
-    configured: isTelegramLoginConfigured(),
-    botUsername: process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "") ?? null,
+    configured,
+    botUsername,
+    loginDomain: domain?.domain ?? null,
+    loginOrigin: domain?.origin ?? null,
+    widgetDomainValid: domain?.widgetDomainValid ?? null,
+    widgetDomainDetail: domain?.detail ?? null,
+    /** Deep-link login works without BotFather /setdomain. */
+    deepLinkLoginAvailable: configured,
   });
 }
 

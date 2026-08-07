@@ -55,6 +55,38 @@ export type TelegramLinkToken = {
   botUsername: string | null;
 };
 
+export type TelegramLoginChallenge = TelegramLinkToken & {
+  /** Opaque challenge id (same secret token used for polling). */
+  challengeId: string;
+  pendingMemberId: string;
+};
+
+export type TelegramLoginChallengeStatus =
+  | {
+      status: "pending";
+      expiresAt: Date;
+      deepLink: string | null;
+      botUsername: string | null;
+    }
+  | {
+      status: "ready";
+      memberId: string;
+      telegramUserId: string;
+      displayName: string | null;
+      externalAuthId: string;
+    }
+  | {
+      status: "expired" | "not_found" | "misconfigured";
+    };
+
+const PENDING_TELEGRAM_AUTH_PREFIX = "pending-telegram:";
+
+export function isPendingTelegramLoginMember(
+  externalAuthId: string | null | undefined,
+): boolean {
+  return Boolean(externalAuthId?.startsWith(PENDING_TELEGRAM_AUTH_PREFIX));
+}
+
 export type ChannelLinkErrorCode =
   | "malformed"
   | "not_found"
@@ -289,6 +321,280 @@ export async function createTelegramLinkToken(
     : null;
 
   return { token, deepLink, expiresAt, botUsername };
+}
+
+/**
+ * Start a web→Telegram Login challenge that does not require the Login Widget
+ * domain. Creates a pending member + one-time deep-link token; the browser
+ * polls until `/start` consumes it.
+ */
+export async function createTelegramLoginChallenge(): Promise<TelegramLoginChallenge> {
+  if (!telegramBotUsername() || !process.env.TELEGRAM_BOT_TOKEN?.trim()) {
+    throw new ChannelLinkError(
+      "misconfigured",
+      "TELEGRAM_BOT_TOKEN and TELEGRAM_BOT_USERNAME are required",
+      503,
+    );
+  }
+
+  const pendingExternalAuthId = `${PENDING_TELEGRAM_AUTH_PREFIX}${randomBytes(16).toString("hex")}`;
+  const pending = await upsertMemberFromExternalAuth({
+    externalAuthId: pendingExternalAuthId,
+    displayName: null,
+  });
+  const minted = await createTelegramLinkToken(pending.id);
+  return {
+    ...minted,
+    challengeId: minted.token,
+    pendingMemberId: pending.id,
+  };
+}
+
+async function findMemberById(memberId: string): Promise<MemberRecord | null> {
+  const db = getDb();
+  const [row] = await db
+    .select({
+      id: members.id,
+      externalAuthId: members.externalAuthId,
+      email: members.email,
+      displayName: members.displayName,
+    })
+    .from(members)
+    .where(eq(members.id, memberId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Poll a login challenge. When Telegram has consumed the deep-link token,
+ * resolve the real member (existing Telegram identity wins over the pending
+ * placeholder) so the web can mint a session cookie.
+ */
+export async function getTelegramLoginChallengeStatus(
+  challengeId: string,
+): Promise<TelegramLoginChallengeStatus> {
+  const token = challengeId.trim();
+  if (!token || token.length > 64 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    return { status: "not_found" };
+  }
+
+  const db = getDb();
+  const tokenHash = hashLinkToken(token);
+  const [row] = await db
+    .select()
+    .from(channelLinkTokens)
+    .where(
+      and(
+        eq(channelLinkTokens.tokenHash, tokenHash),
+        eq(channelLinkTokens.provider, "telegram"),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return { status: "not_found" };
+
+  const botUsername = telegramBotUsername();
+  const deepLink = botUsername
+    ? `https://t.me/${botUsername}?start=${token}`
+    : null;
+
+  if (!row.consumedAt) {
+    if (row.expiresAt.getTime() <= Date.now()) {
+      return { status: "expired" };
+    }
+    return {
+      status: "pending",
+      expiresAt: row.expiresAt,
+      deepLink,
+      botUsername,
+    };
+  }
+
+  const telegramUserId = row.consumedByExternalUserId?.trim();
+  if (!telegramUserId) {
+    return { status: "not_found" };
+  }
+
+  const member =
+    (await findMemberByTelegramUserId(telegramUserId)) ??
+    (await findMemberById(row.memberId));
+  if (!member) return { status: "not_found" };
+
+  // Drop the orphan pending placeholder once the real Telegram member is known.
+  if (
+    member.id !== row.memberId &&
+    isPendingTelegramLoginMember(
+      (await findMemberById(row.memberId))?.externalAuthId,
+    )
+  ) {
+    await db.delete(members).where(eq(members.id, row.memberId));
+  }
+
+  return {
+    status: "ready",
+    memberId: member.id,
+    telegramUserId,
+    displayName: member.displayName,
+    externalAuthId:
+      member.externalAuthId ?? telegramExternalAuthId(telegramUserId),
+  };
+}
+
+/**
+ * Consume a deep-link token for either reconnect-linking or web login.
+ * Pending login members (`pending-telegram:*`) adopt an existing Telegram
+ * identity instead of throwing conflict, so returning users can sign in when
+ * the Login Widget domain is misconfigured.
+ */
+export async function consumeTelegramDeepLink(input: {
+  token: string;
+  telegramUserId: string;
+  username?: string | null;
+  displayName?: string | null;
+}): Promise<{
+  kind: "link" | "login";
+  identity: ChannelIdentityRecord;
+  member: MemberRecord;
+}> {
+  const token = input.token.trim();
+  const telegramUserId = input.telegramUserId.trim();
+  if (!token || token.length > 64 || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    throw new ChannelLinkError(
+      "malformed",
+      "Telegram link token is malformed",
+    );
+  }
+  if (!telegramUserId) {
+    throw new ChannelLinkError(
+      "malformed",
+      "A verified Telegram user ID is required; username-only linking is rejected",
+    );
+  }
+
+  const db = getDb();
+  const tokenHash = hashLinkToken(token);
+  const [row] = await db
+    .select()
+    .from(channelLinkTokens)
+    .where(
+      and(
+        eq(channelLinkTokens.tokenHash, tokenHash),
+        eq(channelLinkTokens.provider, "telegram"),
+      ),
+    )
+    .limit(1);
+
+  if (!row) {
+    throw new ChannelLinkError("not_found", "Telegram link token was not found");
+  }
+
+  const pendingMember = await findMemberById(row.memberId);
+  const isLoginChallenge = isPendingTelegramLoginMember(
+    pendingMember?.externalAuthId,
+  );
+
+  if (isLoginChallenge) {
+    if (row.consumedAt) {
+      // Idempotent webhook retries after a successful login consume.
+      const member =
+        (await findMemberByTelegramUserId(telegramUserId)) ?? pendingMember;
+      if (!member) {
+        throw new ChannelLinkError("used", "Telegram link token has already been used");
+      }
+      const identity = await getTelegramIdentityForMember(member.id);
+      if (!identity) {
+        throw new ChannelLinkError("used", "Telegram link token has already been used");
+      }
+      return { kind: "login", identity, member };
+    }
+    if (row.expiresAt.getTime() <= Date.now()) {
+      throw new ChannelLinkError("expired", "Telegram link token has expired");
+    }
+
+    const now = new Date();
+    const [consumed] = await db
+      .update(channelLinkTokens)
+      .set({
+        consumedAt: now,
+        consumedByExternalUserId: telegramUserId,
+      })
+      .where(
+        and(
+          eq(channelLinkTokens.id, row.id),
+          isNull(channelLinkTokens.consumedAt),
+        ),
+      )
+      .returning();
+    if (!consumed) {
+      throw new ChannelLinkError(
+        "used",
+        "Telegram link token has already been used",
+      );
+    }
+
+    const existing = await findMemberByTelegramUserId(telegramUserId);
+    if (existing) {
+      await touchTelegramIdentityUsername(telegramUserId, input.username);
+      if (pendingMember && pendingMember.id !== existing.id) {
+        await db.delete(members).where(eq(members.id, pendingMember.id));
+      }
+      const identity = await getTelegramIdentityForMember(existing.id);
+      if (!identity) {
+        throw new ChannelLinkError(
+          "not_linked",
+          "Telegram identity missing after login",
+          500,
+        );
+      }
+      return { kind: "login", identity, member: existing };
+    }
+
+    if (!pendingMember) {
+      throw new ChannelLinkError(
+        "not_found",
+        "Telegram login challenge member was not found",
+      );
+    }
+
+    const username =
+      normalizeOptional(input.username)?.replace(/^@/, "") ?? null;
+    const displayName = normalizeOptional(input.displayName);
+    const [member] = await db
+      .update(members)
+      .set({
+        externalAuthId: telegramExternalAuthId(telegramUserId),
+        displayName: displayName ?? pendingMember.displayName,
+        updatedAt: now,
+      })
+      .where(eq(members.id, pendingMember.id))
+      .returning({
+        id: members.id,
+        externalAuthId: members.externalAuthId,
+        email: members.email,
+        displayName: members.displayName,
+      });
+
+    const [createdIdentity] = await db
+      .insert(channelIdentities)
+      .values({
+        memberId: pendingMember.id,
+        provider: "telegram",
+        externalUserId: telegramUserId,
+        username,
+        linkedAt: now,
+      })
+      .returning();
+
+    return {
+      kind: "login",
+      identity: toChannelIdentityRecord(createdIdentity!),
+      member: member!,
+    };
+  }
+
+  const identity = await consumeTelegramLinkToken(input);
+  const member = (await findMemberById(identity.memberId))!;
+  return { kind: "link", identity, member };
 }
 
 /**
