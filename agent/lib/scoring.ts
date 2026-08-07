@@ -10,6 +10,10 @@ export type ScoreCompanyPrefs = {
   watchlistTier?: WatchlistTier;
   companyCategory?: string | null;
   companyName?: string;
+  /** User's detected role family — boosts companies with matching talent signals. */
+  roleFamily?: string;
+  /** Geography tokens from LinkedIn profile (e.g. australia, sydney). */
+  geographyHints?: string[];
 };
 
 export type ScoreCompanyResult = {
@@ -45,6 +49,7 @@ const CONCURRENT_SIGNAL_TYPES = new Set([
   "talent_flow_strong_org",
   "expansion_signal",
   "first_apac_gtm_job",
+  "job_alert_listing",
   "people_watchlist_job_change",
   "people_watchlist_move",
 ]);
@@ -61,6 +66,7 @@ const IMMEDIATE_LEADING_TYPES = new Set([
   "apac_sales_leadership_hire",
   "regional_leadership_hire",
   "first_apac_gtm_job",
+  "job_alert_listing",
   "people_watchlist_job_change",
   "people_watchlist_move",
 ]);
@@ -97,6 +103,35 @@ const HYPERSCALER_HINTS = [
 ];
 
 const SEED_STAGE_HINTS = ["seed", "pre-seed", "angel", "stealth"];
+
+/** Role-family → signal types that imply a matching seat is warming. */
+const ROLE_FAMILY_SIGNAL_BOOSTS: Record<string, string[]> = {
+  sales_engineer: [
+    "adjacent_se_csm",
+    "first_apac_gtm_job",
+    "talent_flow_strong_org",
+    "expansion_signal",
+  ],
+  account_executive: [
+    "apac_sales_leadership_hire",
+    "regional_leadership_hire",
+    "first_apac_gtm_job",
+    "adjacent_se_csm",
+  ],
+  customer_success: ["adjacent_se_csm", "expansion_signal", "au_logo"],
+  solutions_architect: [
+    "adjacent_se_csm",
+    "sydney_infra",
+    "talent_flow_strong_org",
+  ],
+  partnerships: ["expansion_signal", "au_logo", "exec_tour"],
+  gtm_leadership: [
+    "apac_sales_leadership_hire",
+    "regional_leadership_hire",
+    "anz_expansion",
+    "local_entity",
+  ],
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -152,6 +187,7 @@ function scoreTiming(positiveSignals: ScoringSignal[]): {
   }
 
   let score = 0;
+  const scoredIds = new Set<ScoringSignal>();
 
   for (const signal of leading) {
     const type = normalizeSignalType(signal.type);
@@ -164,6 +200,20 @@ function scoreTiming(positiveSignals: ScoringSignal[]): {
       score += clamp(weight * 0.5, 0.25, 1.25);
       rationale.push(`Supporting leading signal: ${signal.summary}`);
     }
+    scoredIds.add(signal);
+  }
+
+  // Concurrent / act-fast types (e.g. job_alert_listing) contribute timing even
+  // when they are not classic lead-time "leading" signals.
+  for (const signal of positiveSignals) {
+    if (scoredIds.has(signal) || !isPositive(signal)) continue;
+    const type = normalizeSignalType(signal.type);
+    if (!CONCURRENT_SIGNAL_TYPES.has(type) && !IMMEDIATE_LEADING_TYPES.has(type)) {
+      continue;
+    }
+    const weight = weightedStrength(signal);
+    score += clamp(weight * 0.85, 0.5, 2);
+    rationale.push(`Concurrent hiring signal: ${signal.summary}`);
   }
 
   const recentWindow = positiveSignals.filter(
@@ -281,6 +331,7 @@ function determinePingTier(input: {
 function applyPreferenceAdjustments(
   base: ScoreCompanyResult,
   prefs?: ScoreCompanyPrefs,
+  inputSignals?: ScoringSignal[],
 ): ScoreCompanyResult {
   if (!prefs) {
     return base;
@@ -288,6 +339,8 @@ function applyPreferenceAdjustments(
 
   const rationale = [...base.rationale];
   let score = base.score;
+  let talent = base.talent;
+  let territory = base.territory;
 
   if (
     prefs.ignoreCategories?.length &&
@@ -322,7 +375,43 @@ function applyPreferenceAdjustments(
     }
   }
 
-  return { ...base, score, rationale };
+  if (prefs.roleFamily && inputSignals) {
+    const boostTypes = new Set(
+      ROLE_FAMILY_SIGNAL_BOOSTS[prefs.roleFamily] ?? [],
+    );
+    if (boostTypes.size > 0) {
+      const hits = inputSignals.filter(
+        (signal) =>
+          signal.direction === "positive" &&
+          boostTypes.has(normalizeSignalType(signal.type)),
+      );
+      if (hits.length > 0) {
+        const bump = clamp(hits.length * 0.35, 0.35, 1.25);
+        score = clamp(score + bump, 0, 10);
+        talent = clamp(talent + bump * 0.5, 0, 3);
+        rationale.push(
+          `Role-fit bump (+${bump.toFixed(2)}) for ${prefs.roleFamily}: ${hits.length} matching talent/GTM signal(s).`,
+        );
+      }
+    }
+  }
+
+  if (prefs.geographyHints?.length && inputSignals) {
+    const blob = inputSignals
+      .map((s) => `${s.type} ${s.summary}`)
+      .join(" ")
+      .toLowerCase();
+    const geoHit = prefs.geographyHints.some((hint) =>
+      blob.includes(hint.toLowerCase()),
+    );
+    if (geoHit) {
+      score = clamp(score + 0.4, 0, 10);
+      territory = clamp(territory + 0.25, 0, 3);
+      rationale.push("Geography-fit bump: signals match your LinkedIn location.");
+    }
+  }
+
+  return { ...base, score, talent, territory, rationale };
 }
 
 export function scoreCompany(
@@ -372,5 +461,5 @@ export function scoreCompany(
     pingTier: score <= 0 && negativeResult.drag > 0 ? "none" : pingTier,
   };
 
-  return applyPreferenceAdjustments(base, prefs);
+  return applyPreferenceAdjustments(base, prefs, inputSignals);
 }

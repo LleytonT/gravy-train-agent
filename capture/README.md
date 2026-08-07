@@ -8,6 +8,18 @@ Read-only Playwright scripts that gently scroll LinkedIn and X home feeds and st
 - **Gentle**: one scroll session per run, 2–6s randomized delays, max ~150 items per source.
 - **Fail safe**: abort immediately on login wall or captcha — no aggressive retries.
 
+## LinkedIn profile (personalization)
+
+Capture your **own** LinkedIn profile into `user-profile.md` Career Identity (title, company, location, role family):
+
+```bash
+pnpm capture:profile -- --headed   # first run / login
+pnpm capture:profile               # thereafter
+pnpm capture:profile:dry           # print JSON only
+```
+
+Same guardrails: read-only, abort on login wall/captcha. Or describe your role in chat — the agent calls `ingest_linkedin_profile`.
+
 ## First-time login (required)
 
 Sessions are stored in a persistent Chromium profile so you only log in once.
@@ -51,11 +63,11 @@ tsx capture/run-capture.ts [--dry-run] [--source=x|linkedin|all] [--headed]
 
 ## Environment
 
-Create `.env` at the repo root (loaded automatically):
+Create `.env.local` at the repo root (loaded before `.env`):
 
 ```env
-# Optional: local SQLite/Turso DB via agent repo
-DATABASE_URL=file:./data/gravy-scout.db
+# Required for local database writes; pull from the linked Vercel project.
+DATABASE_URL=postgresql://...
 
 # Optional: remote sync after local write
 CAPTURE_SYNC_URL=https://your-app.example/api/capture/sync

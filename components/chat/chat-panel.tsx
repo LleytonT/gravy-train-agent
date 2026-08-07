@@ -1,126 +1,313 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import type { OnboardingMatch } from "@/agent/lib/onboarding-types";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import type { SessionState } from "eve/client";
 import { useEveAgent } from "eve/react";
-import type { HandleMessageStreamEvent, SessionState } from "eve/client";
+import { useEffect, useRef, useState } from "react";
+
+import { fetchEveBearerToken } from "@/components/auth/member-session";
 
 import { ChatComposer } from "./chat-composer";
 import { ChatEmpty } from "./chat-empty";
+import {
+  beginTurn,
+  completeTurn,
+  extractAssistantText,
+  syncTurnSession,
+} from "./conversation-api";
+import { DurableMessageBubble } from "./durable-message";
 import { MessageBubble } from "./message-parts";
+import type { ChatConversation, DurableChatMessage } from "./types";
 
 type ChatPanelProps = {
-  threadId: string;
-  initialEvents?: readonly HandleMessageStreamEvent[];
+  conversation: ChatConversation;
+  initialMessages: DurableChatMessage[];
   initialSession?: SessionState;
-  onPersist: (snapshot: {
-    events: readonly HandleMessageStreamEvent[];
-    session?: SessionState;
-  }) => void;
-  onTitleSeed: (prompt: string) => void;
+  onConversationMeta: (conversation: ChatConversation) => void;
+  onMessagesChange: (messages: DurableChatMessage[]) => void;
   sidebarToggle: React.ReactNode;
+  matches?: OnboardingMatch[];
+  identityLabel?: string;
+  autoKickoffMessage?: string | null;
+  onKickoffSent?: () => void;
 };
 
 export function ChatPanel({
-  threadId,
-  initialEvents,
+  conversation,
+  initialMessages,
   initialSession,
-  onPersist,
-  onTitleSeed,
+  onConversationMeta,
+  onMessagesChange,
   sidebarToggle,
+  matches,
+  identityLabel,
+  autoKickoffMessage,
+  onKickoffSent,
 }: ChatPanelProps) {
+  const [durableMessages, setDurableMessages] =
+    useState<DurableChatMessage[]>(initialMessages);
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [memberSessionReady, setMemberSessionReady] = useState(false);
+
+  useEffect(() => {
+    void fetchEveBearerToken()
+      .then((token) => setMemberSessionReady(Boolean(token)))
+      .catch(() => setMemberSessionReady(false));
+  }, []);
+
   const agent = useEveAgent({
-    initialEvents: initialEvents ?? [],
+    initialEvents: [],
     initialSession,
-    onFinish(snapshot) {
-      onPersist({
-        events: snapshot.events,
-        session: snapshot.session,
-      });
+    auth: {
+      bearer: async () => {
+        const memberToken = await fetchEveBearerToken();
+        if (!memberToken) {
+          throw new Error("Verify with Telegram to chat with Gravy Scout");
+        }
+        return memberToken;
+      },
+    },
+    async onFinish(snapshot) {
+      const session = snapshot.session;
+      if (!session?.sessionId) return;
+
+      const assistantBody = extractAssistantText(snapshot.data.messages);
+      if (!assistantBody) {
+        await syncTurnSession(conversation.id, {
+          eveSessionId: session.sessionId,
+          continuationToken: session.continuationToken,
+          streamIndex: session.streamIndex,
+        });
+        return;
+      }
+
+      const turnId =
+        session.continuationToken ??
+        `${session.sessionId}:${session.streamIndex ?? 0}`;
+      try {
+        const assistantMessage = await completeTurn(conversation.id, {
+          assistantBody,
+          assistantIdempotencyKey: `assistant:web:${turnId}`,
+          eveSessionId: session.sessionId,
+          continuationToken: session.continuationToken,
+          streamIndex: session.streamIndex,
+        });
+        setDurableMessages((prev) => {
+          if (prev.some((message) => message.id === assistantMessage.id)) {
+            return prev;
+          }
+          const next = [...prev, assistantMessage];
+          onMessagesChange(next);
+          return next;
+        });
+        onConversationMeta({
+          ...conversation,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        setBridgeError(
+          error instanceof Error
+            ? error.message
+            : "Failed to persist assistant reply",
+        );
+      }
     },
   });
 
-  const messages = agent.data.messages;
+  const liveMessages = agent.data.messages;
   const busy = agent.status === "submitted" || agent.status === "streaming";
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const kickoffStarted = useRef(false);
+  const sendMessageRef = useRef<(message: string) => Promise<void>>(
+    async () => undefined,
+  );
 
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, agent.status]);
-
-  useEffect(() => {
-    if (persistTimer.current) clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(() => {
-      onPersist({
-        events: agent.events,
-        session: agent.session,
+    if (!agent.session?.sessionId) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      void syncTurnSession(conversation.id, {
+        eveSessionId: agent.session!.sessionId!,
+        continuationToken: agent.session!.continuationToken,
+        streamIndex: agent.session!.streamIndex,
+      }).catch(() => {
+        // Best-effort mid-stream cursor sync for reconnect recovery.
       });
-    }, 350);
+    }, 800);
     return () => {
-      if (persistTimer.current) clearTimeout(persistTimer.current);
+      if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [agent.events, agent.session, onPersist]);
+  }, [agent.session, conversation.id]);
+
+  const canChat = memberSessionReady;
+
+  sendMessageRef.current = async (message: string) => {
+    if (!canChat) {
+      throw new Error("Verify with Telegram to chat with Gravy Scout");
+    }
+    setBridgeError(null);
+    const idempotencyKey =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? `member:web:${crypto.randomUUID()}`
+        : `member:web:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const began = await beginTurn(conversation.id, {
+      body: message,
+      idempotencyKey,
+      titleFromBody: true,
+    });
+
+    onConversationMeta(began.conversation);
+    setDurableMessages((prev) => {
+      if (prev.some((row) => row.id === began.message.id)) return prev;
+      const next = [...prev, began.message];
+      onMessagesChange(next);
+      return next;
+    });
+
+    const evePayload =
+      began.shouldInjectContext && began.contextPrefix
+        ? `${began.contextPrefix}\n\n---\n\n${message}`
+        : message;
+
+    await agent.send({ message: evePayload });
+  };
+
+  useEffect(() => {
+    if (!autoKickoffMessage) return;
+    if (!canChat) return;
+    if (kickoffStarted.current) return;
+    if (durableMessages.length > 0) return;
+    if (liveMessages.length > 0) return;
+
+    kickoffStarted.current = true;
+    void sendMessageRef.current(autoKickoffMessage).finally(() => {
+      onKickoffSent?.();
+    });
+  }, [
+    autoKickoffMessage,
+    canChat,
+    durableMessages.length,
+    liveMessages.length,
+    onKickoffSent,
+  ]);
 
   async function sendMessage(message: string) {
-    if (messages.length === 0) onTitleSeed(message);
-    await agent.send({ message });
+    if (!canChat) {
+      throw new Error("Verify with Telegram to chat with Gravy Scout");
+    }
+    await sendMessageRef.current(message);
   }
+
+  const showEmpty =
+    durableMessages.length === 0 &&
+    liveMessages.length === 0 &&
+    !autoKickoffMessage;
+
+  const showKickoffPlaceholder =
+    durableMessages.length === 0 &&
+    liveMessages.length === 0 &&
+    Boolean(autoKickoffMessage);
+
+  // Member lines are already in the durable timeline. While streaming, only
+  // show live assistant/tool parts (Eve may wrap the turn with context).
+  const streamingLive = busy
+    ? liveMessages.filter((message) => message.role !== "user")
+    : [];
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-[var(--color-line)]/80 px-4 py-3 md:px-6">
+      <header className="flex items-center justify-between gap-3 px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           {sidebarToggle}
           <div>
             <p className="font-display text-sm font-semibold tracking-tight md:hidden">
               Gravy Scout
             </p>
-            <p className="hidden font-mono text-[11px] tracking-[0.18em] text-[var(--color-ink-soft)]/70 uppercase md:block">
-              Session {threadId.slice(0, 8)}
+            <p className="hidden font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase md:block">
+              {conversation.title}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {busy ? (
-            <span className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-white/60 px-2.5 py-1 font-mono text-[11px] tracking-wide text-[var(--color-ink-soft)] uppercase">
-              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-[var(--color-signal)]" />
+            <Badge variant="outline" className="gap-2 font-mono text-[11px] uppercase">
+              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-primary" />
               Streaming
-            </span>
+            </Badge>
           ) : null}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => agent.reset()}
-            className="rounded-lg border border-[var(--color-line)] bg-white/60 px-2.5 py-1.5 text-sm text-[var(--color-ink-soft)] transition hover:border-[var(--color-line-strong)] hover:text-[var(--color-ink)]"
           >
-            Reset
-          </button>
+            Reset session
+          </Button>
         </div>
       </header>
+      <Separator />
 
-      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
-          <ChatEmpty onSuggestion={(prompt) => void sendMessage(prompt)} disabled={busy} />
-        ) : (
-          <div className="flex flex-col gap-5 py-6 md:gap-6 md:py-8">
-            {messages.map((message) => (
+      {showEmpty ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <ChatEmpty
+            onSuggestion={(prompt) => void sendMessage(prompt)}
+            disabled={busy}
+            matches={matches}
+            identityLabel={identityLabel}
+          />
+        </div>
+      ) : showKickoffPlaceholder ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 md:px-6">
+            {matches && matches.length > 0 ? (
+              <ChatEmpty
+                onSuggestion={(prompt) => void sendMessage(prompt)}
+                disabled={busy}
+                matches={matches}
+                identityLabel={identityLabel}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Starting your advisor…</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Conversation className="min-h-0">
+          <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-0 py-6 md:gap-6 md:py-8">
+            {durableMessages.map((message) => (
+              <DurableMessageBubble key={message.id} message={message} />
+            ))}
+            {streamingLive.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
-          </div>
-        )}
-      </div>
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      )}
 
-      {agent.error ? (
+      {bridgeError || agent.error ? (
         <div className="mx-auto w-full max-w-3xl px-4 pb-2 md:px-6">
-          <p className="rounded-xl border border-[color-mix(in_oklab,var(--color-warn)_40%,transparent)] bg-[color-mix(in_oklab,var(--color-warn)_10%,white)] px-3 py-2 text-sm text-[var(--color-warn)]">
-            {agent.error.message}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>
+              {bridgeError ?? agent.error?.message}
+            </AlertDescription>
+          </Alert>
         </div>
       ) : null}
 
       <ChatComposer
         busy={busy}
+        status={agent.status as "submitted" | "streaming" | "ready" | "error"}
         onSend={(message) => void sendMessage(message)}
         onStop={() => agent.stop()}
       />

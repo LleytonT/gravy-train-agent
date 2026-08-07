@@ -8,7 +8,9 @@
     "skipLibCheck": true,
     "noEmit": true,
     "rootDir": ".",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "resolveJsonModule": true
   },
   "include": [
@@ -17,9 +19,16 @@
     "agent/channels/**/*.ts",
     "agent/schedules/**/*.ts",
     "agent/agent.ts",
+    "evals/**/*.ts",
     "capture/**/*.ts",
-    "scripts/**/*.ts",
-    "evals/**/*.ts"
+    "scripts/**/*.ts"
   ],
-  "exclude": ["node_modules", ".eve", "dist", ".next", "app", "components"]
+  "exclude": [
+    "node_modules",
+    ".eve",
+    "dist",
+    ".next",
+    "app",
+    "components"
+  ]
 }

@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+import { config } from "dotenv";
+
+config({ path: [".env.local", ".env"] });
+
 import { ensureSchema } from "../agent/lib/db/client.js";
 import { repo } from "../agent/lib/db/repo.js";
 import { scoreCompany } from "../agent/lib/scoring.js";

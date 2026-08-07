@@ -1,26 +1,52 @@
 # User profile
 
-> Editable by Gravy Scout via `update_user_profile`. Corrections from WhatsApp land here.
+> Editable by Gravy Scout via onboarding (`/api/onboarding`), `update_user_profile`, `save_messaging_destination`, and `ingest_linkedin_profile`.
+
+## Career Identity
+
+- Name: Alex
+- Headline: Sales Engineer at Vercel
+- Current title: Sales Engineer
+- Current company: Vercel
+- Location: Sydney, Australia
+- LinkedIn URL: 
+- Role family: sales_engineer
+- Role family label: Sales / Solutions / Field Engineer
+- Seniority: 
+- Geography hints: australia, sydney
+- Summary: Interests: AI infra / GPU
+- Target titles: Sales Engineer, Solutions Engineer, Field Engineer, Deployment Engineer, Customer Engineer, Pre-Sales Engineer
 
 ## Identity
 
-- Name: _(placeholder — tell me your preferred name)_
-- WhatsApp: _(placeholder — E.164, e.g. +61…)_
-- Location: Sydney, APAC
-- Role today: GTM at Vercel
+- Name: Alex
+- WhatsApp: _(optional)_
+- Location: Sydney, Australia
+- Role today: Sales Engineer at Vercel
 
 ## Targeting
 
-- Role: Account Executive (startups segment)
-- Geography: APAC / ANZ, Sydney-based
-- Background: technical — ex full-stack engineer, CS degree
+- Role: Sales Engineer
+- Geography: Sydney, Australia
+- Background: _(refine via chat)_
+- Role family: sales_engineer
 
 ## Interests
 
-- Strong: AI-native infra / developer tools expanding into APAC
-- Also open: strong hyperscaler-adjacent plays
-- Seed watchlist companies: Modal, Fireworks AI, Cursor, ElevenLabs
-- People-watchlist: _(add names via chat)_
+- Strong: AI infra / GPU
+- Also open: _(tell me as we explore)_
+- Seed watchlist companies: Modal, Fireworks AI, Cursor, ElevenLabs, Decagon, Sierra
+- People-watchlist: _(add as we explore)_
+
+## Messaging
+
+- telegramChatId: 
+- telegramUsername: 
+- linkedAt: 
+- consentUpdates: false
+- onboardingComplete: false
+
+I'll use Telegram to send nightly opportunity updates when linked. Reply anytime to chat.
 
 ## Preferences
 
@@ -31,5 +57,6 @@
 
 ## Notes
 
-- On first scout run, ask for ~10 more watchlist companies.
-- Agent appends corrections from WhatsApp here.
+- Web onboarding writes Career Identity + Messaging consent first; the agent keeps enriching this file as you explore.
+- Telegram chatId is saved automatically when you /start the bot.
+- Agent appends corrections from chat / Telegram here.

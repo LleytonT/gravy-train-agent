@@ -37,3 +37,8 @@ Thumbs.db
 # Playwright
 test-results/
 playwright-report/
+
+# Vercel CLI may write additional env files; keep the example committed.
+.env*
+!.env.example
+.vercel

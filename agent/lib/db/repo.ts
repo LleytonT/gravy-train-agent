@@ -1,19 +1,25 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 
 import { getDb } from "./client.js";
 import {
   companies,
   opportunities,
+  openRoles,
+  outreachTargets,
   peopleWatchlist,
   rawItems,
   runLogs,
   signals,
   type Company,
   type NewRawItem,
+  type OpenRole,
+  type OpenRoleStatus,
   type Opportunity,
   type OpportunityStatus,
+  type OutreachKind,
+  type OutreachTarget,
   type PersonWatchlist,
   type RawItem,
   type RunLog,
@@ -236,6 +242,7 @@ export const repo = {
   },
 
   async saveSignal(input: {
+    memberId?: string | null;
     companyId: string;
     type: string;
     direction: Signal["direction"];
@@ -253,6 +260,7 @@ export const repo = {
       .insert(signals)
       .values({
         id: randomUUID(),
+        memberId: input.memberId ?? null,
         companyId: input.companyId,
         type: input.type,
         direction: input.direction,
@@ -270,13 +278,19 @@ export const repo = {
 
   async getSignalsForCompany(
     companyId: string,
-    options?: { includeDecayed?: boolean },
+    options?: { includeDecayed?: boolean; memberId?: string },
   ): Promise<Signal[] | SignalWithDecay[]> {
     const db = getDb();
+    const visibility = options?.memberId
+      ? or(
+          isNull(signals.memberId),
+          eq(signals.memberId, options.memberId),
+        )
+      : isNull(signals.memberId);
     const rows = await db
       .select()
       .from(signals)
-      .where(eq(signals.companyId, companyId))
+      .where(and(eq(signals.companyId, companyId), visibility))
       .orderBy(desc(signals.observedAt));
 
     if (!options?.includeDecayed) {
@@ -384,7 +398,188 @@ export const repo = {
     return updated;
   },
 
+  async upsertOpenRole(input: {
+    companyId: string;
+    title: string;
+    location?: string | null;
+    sourceUrl?: string | null;
+    status?: OpenRoleStatus;
+  }): Promise<OpenRole> {
+    const db = getDb();
+    const timestamp = nowIso();
+    const existing = await db
+      .select()
+      .from(openRoles)
+      .where(eq(openRoles.companyId, input.companyId));
+
+    const match = existing.find(
+      (role) =>
+        normalizeName(role.title) === normalizeName(input.title) &&
+        (role.location ?? "") === (input.location ?? ""),
+    );
+
+    if (match) {
+      const [updated] = await db
+        .update(openRoles)
+        .set({
+          title: input.title.trim(),
+          location: input.location ?? match.location,
+          sourceUrl: input.sourceUrl ?? match.sourceUrl,
+          status: input.status ?? match.status,
+          updatedAt: timestamp,
+        })
+        .where(eq(openRoles.id, match.id))
+        .returning();
+      return updated!;
+    }
+
+    const [created] = await db
+      .insert(openRoles)
+      .values({
+        id: randomUUID(),
+        companyId: input.companyId,
+        title: input.title.trim(),
+        location: input.location ?? null,
+        sourceUrl: input.sourceUrl ?? null,
+        status: input.status ?? "open",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .returning();
+
+    return created!;
+  },
+
+  async listOpenRoles(options?: {
+    companyId?: string;
+    status?: OpenRoleStatus;
+  }): Promise<OpenRole[]> {
+    const db = getDb();
+    const conditions = [];
+
+    if (options?.companyId) {
+      conditions.push(eq(openRoles.companyId, options.companyId));
+    }
+    if (options?.status) {
+      conditions.push(eq(openRoles.status, options.status));
+    }
+
+    if (conditions.length === 0) {
+      return db.select().from(openRoles).orderBy(desc(openRoles.updatedAt));
+    }
+
+    if (conditions.length === 1) {
+      return db
+        .select()
+        .from(openRoles)
+        .where(conditions[0]!)
+        .orderBy(desc(openRoles.updatedAt));
+    }
+
+    return db
+      .select()
+      .from(openRoles)
+      .where(and(...conditions))
+      .orderBy(desc(openRoles.updatedAt));
+  },
+
+  async upsertOutreachTarget(input: {
+    companyId: string;
+    name: string;
+    title: string;
+    kind: OutreachKind;
+    linkedInUrl?: string | null;
+    whyReachOut: string;
+    relatedRoleTitle?: string | null;
+  }): Promise<OutreachTarget> {
+    const db = getDb();
+    const timestamp = nowIso();
+    const existing = await db
+      .select()
+      .from(outreachTargets)
+      .where(eq(outreachTargets.companyId, input.companyId));
+
+    const match = existing.find(
+      (row) =>
+        normalizeName(row.name) === normalizeName(input.name) &&
+        row.kind === input.kind,
+    );
+
+    if (match) {
+      const [updated] = await db
+        .update(outreachTargets)
+        .set({
+          name: input.name.trim(),
+          title: input.title.trim(),
+          kind: input.kind,
+          linkedInUrl: input.linkedInUrl ?? match.linkedInUrl,
+          whyReachOut: input.whyReachOut,
+          relatedRoleTitle:
+            input.relatedRoleTitle ?? match.relatedRoleTitle,
+          updatedAt: timestamp,
+        })
+        .where(eq(outreachTargets.id, match.id))
+        .returning();
+      return updated!;
+    }
+
+    const [created] = await db
+      .insert(outreachTargets)
+      .values({
+        id: randomUUID(),
+        companyId: input.companyId,
+        name: input.name.trim(),
+        title: input.title.trim(),
+        kind: input.kind,
+        linkedInUrl: input.linkedInUrl ?? null,
+        whyReachOut: input.whyReachOut,
+        relatedRoleTitle: input.relatedRoleTitle ?? null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .returning();
+
+    return created!;
+  },
+
+  async listOutreachTargets(options?: {
+    companyId?: string;
+    kind?: OutreachKind;
+  }): Promise<OutreachTarget[]> {
+    const db = getDb();
+    const conditions = [];
+
+    if (options?.companyId) {
+      conditions.push(eq(outreachTargets.companyId, options.companyId));
+    }
+    if (options?.kind) {
+      conditions.push(eq(outreachTargets.kind, options.kind));
+    }
+
+    if (conditions.length === 0) {
+      return db
+        .select()
+        .from(outreachTargets)
+        .orderBy(outreachTargets.companyId, outreachTargets.name);
+    }
+
+    if (conditions.length === 1) {
+      return db
+        .select()
+        .from(outreachTargets)
+        .where(conditions[0]!)
+        .orderBy(outreachTargets.name);
+    }
+
+    return db
+      .select()
+      .from(outreachTargets)
+      .where(and(...conditions))
+      .orderBy(outreachTargets.name);
+  },
+
   async createOpportunity(input: {
+    memberId?: string | null;
     companyId: string;
     headline: string;
     score: number;
@@ -398,6 +593,7 @@ export const repo = {
       .insert(opportunities)
       .values({
         id: randomUUID(),
+        memberId: input.memberId ?? null,
         companyId: input.companyId,
         headline: input.headline,
         score: input.score,
@@ -412,6 +608,9 @@ export const repo = {
   },
 
   async listOpportunities(options?: {
+    memberId?: string;
+    /** When true with memberId, also include shared (null-owner) seed rows. */
+    includeShared?: boolean;
     status?: OpportunityStatus;
     companyId?: string;
     limit?: number;
@@ -421,6 +620,20 @@ export const repo = {
 
     if (options?.status) {
       conditions.push(eq(opportunities.status, options.status));
+    }
+    if (options?.memberId) {
+      if (options.includeShared) {
+        conditions.push(
+          or(
+            isNull(opportunities.memberId),
+            eq(opportunities.memberId, options.memberId),
+          )!,
+        );
+      } else {
+        conditions.push(eq(opportunities.memberId, options.memberId));
+      }
+    } else {
+      conditions.push(isNull(opportunities.memberId));
     }
     if (options?.companyId) {
       conditions.push(eq(opportunities.companyId, options.companyId));
@@ -474,6 +687,7 @@ export const repo = {
   async getRecentPingForCompany(
     companyId: string,
     withinHours = 48,
+    memberId?: string,
   ): Promise<Opportunity | undefined> {
     const db = getDb();
     const cutoff = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
@@ -484,6 +698,9 @@ export const repo = {
       .where(
         and(
           eq(opportunities.companyId, companyId),
+          memberId
+            ? eq(opportunities.memberId, memberId)
+            : isNull(opportunities.memberId),
           or(
             eq(opportunities.status, "pinged"),
             eq(opportunities.status, "discussed"),
