@@ -19,7 +19,7 @@ The remaining sections document how to run and inspect the current prototype whi
 | --- | --- |
 | Agent | Eve (`agent/` filesystem layout) |
 | Web UI | Next.js + `useEveAgent` (same-origin `/eve/v1/*` via `withEve`) |
-| Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
+| Models | AI Gateway — `AGENT_MODEL` (chat/synthesis) + `CLASSIFY_MODEL` (batch classify); swap or fine-tune via env |
 | DB | Neon Postgres + Drizzle migrations |
 | Capture | Playwright, your logged-in browser profile (read-only) |
 | Messaging | **Telegram** (primary) · Twilio WhatsApp optional fallback |
@@ -64,9 +64,10 @@ agent/
   tools/                   # snake_case Eve tools
   schedules/nightly_scout.ts
   channels/                # eve, telegram, twilio, capture-sync
-  lib/                     # db, classify, scoring, profile, messaging
+  lib/                     # db, classify, scoring, profile, models, messaging
   sandbox/workspace/memory/user-profile.md
 capture/                   # Playwright (runs on your Mac, not on Vercel)
+evals/                     # Eve .eval.ts (GS-009) + model/fine-tune harness
 scripts/seed.ts
 ```
 
@@ -142,6 +143,33 @@ pnpm capture
 
 Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 
+## Evals, multi-LLM choice, fine-tunes
+
+Two suites share `evals/` — see [`evals/README.md`](evals/README.md):
+
+1. **Eve evals (GS-009)** — `pnpm test:evals` — deterministic agent behavior with `mockModel` (no Gateway/Neon).
+2. **Model / fine-tune harness** — `pnpm eval` / `eval:*` — scoring, classify gold, digest/chat fixtures, multi-LLM compare, fine-tune export.
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm test:evals` | Eve deterministic hard-gate suite |
+| `pnpm eval` | Offline model harness (scoring + digest + chat fixtures) |
+| `pnpm eval:scoring` | Expanded Gravy Train Index cases (broader than `test:scoring` smoke) |
+| `pnpm eval:classify` | Gold-label classify accuracy (`AI_GATEWAY_API_KEY`) |
+| `pnpm eval:compare` | Sweep `CLASSIFY_MODELS` for model pick / fine-tune check |
+| `pnpm eval:export` | Write classify fine-tune JSONL to `data/evals/` |
+| `pnpm eval:digest` / `pnpm eval:chat` | Digest rubric / tool-use scenarios |
+
+**What you need to choose an LLM or ship a fine-tune:** a labeled classify gold set (`evals/fixtures/classify-gold.json`), deterministic scoring regressions, digest + chat rubrics, env-overridable `AGENT_MODEL` / `CLASSIFY_MODEL`, and a compare matrix. Keep scoring in code; fine-tune classification (optionally digest tone later).
+
+```bash
+pnpm test:evals                           # GS-009 agent behavior gates
+pnpm eval                                 # offline model harness (no API key)
+CLASSIFY_MODEL=openai/gpt-5-mini pnpm eval:classify
+CLASSIFY_MODELS=anthropic/claude-haiku-4.5,openai/gpt-5-mini pnpm eval:compare
+pnpm eval:export                          # then train externally → set CLASSIFY_MODEL
+```
+
 ## Scripts
 
 | Command | Purpose |
@@ -162,6 +190,7 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | `pnpm test:scoring` | Smoke test scoring + role personalization |
 | `pnpm test:evals` | Eve deterministic eval suite (GS-009 fixture agent) |
 | `pnpm test:evals:list` | List discovered Eve eval ids |
+| `pnpm eval` / `eval:*` | Model / fine-tune harness (see above) |
 | `pnpm exec tsx scripts/verify-dossier.ts` | Confirm seed dossiers |
 
 ## Prototype persistence warning

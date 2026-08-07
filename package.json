@@ -35,7 +35,14 @@
     "capture:profile": "tsx capture/run-profile-capture.ts",
     "capture:profile:dry": "tsx capture/run-profile-capture.ts --dry-run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.agent.json",
-    "test:scoring": "tsx scripts/smoke-scoring.ts"
+    "test:scoring": "tsx scripts/smoke-scoring.ts",
+    "eval": "tsx evals/run-all.ts",
+    "eval:scoring": "tsx evals/run-scoring.ts",
+    "eval:digest": "tsx evals/run-digest.ts",
+    "eval:chat": "tsx evals/run-chat.ts",
+    "eval:classify": "tsx evals/run-classify.ts",
+    "eval:compare": "tsx evals/compare-models.ts",
+    "eval:export": "tsx evals/export-finetune.ts"
   },
   "dependencies": {
     "@clerk/backend": "^3.15.0",

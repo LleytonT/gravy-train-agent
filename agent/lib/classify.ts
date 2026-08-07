@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 
-import { CLASSIFY_MODEL } from "./models.js";
+import { CLASSIFY_MODEL, resolveModel } from "./models.js";
 import type { RawItem } from "./db/schema.js";
 
 export { CLASSIFY_MODEL };
@@ -28,6 +28,11 @@ export type ClassifyItem = Pick<
   "id" | "source" | "author" | "authorHeadline" | "excerpt" | "url" | "postedAt"
 >;
 
+export type ClassifyOptions = {
+  /** Override CLASSIFY_MODEL (Gateway id or fine-tuned model id). */
+  model?: string;
+};
+
 const SIGNAL_TYPE_GUIDE = [
   "Leading / timing signals:",
   "- apac_sales_leadership_hire",
@@ -45,17 +50,8 @@ const SIGNAL_TYPE_GUIDE = [
   "- layoffs, leadership_departure, funding_struggle, apac_retreat",
 ].join("\n");
 
-function buildBatchPrompt(items: ClassifyItem[]): string {
-  const payload = items.map((item) => ({
-    rawItemId: item.id,
-    source: item.source,
-    author: item.author,
-    authorHeadline: item.authorHeadline,
-    excerpt: item.excerpt,
-    url: item.url,
-    postedAt: item.postedAt,
-  }));
-
+/** System prompt used for batch classification (also used by fine-tune export). */
+export function buildClassifySystemPrompt(): string {
   return [
     "You extract structured GTM intelligence signals for an APAC-focused B2B scout.",
     "Return only companies and signals clearly supported by each item.",
@@ -70,23 +66,37 @@ function buildBatchPrompt(items: ClassifyItem[]): string {
   ].join("\n");
 }
 
-async function classifyChunk(items: ClassifyItem[]): Promise<ExtractedSignal[]> {
+/** User-message payload for one classify batch (fine-tune / eval export). */
+export function buildClassifyUserPrompt(items: ClassifyItem[]): string {
+  return JSON.stringify(
+    items.map((item) => ({
+      rawItemId: item.id,
+      source: item.source,
+      author: item.author,
+      authorHeadline: item.authorHeadline,
+      excerpt: item.excerpt,
+      url: item.url,
+      postedAt: item.postedAt,
+    })),
+    null,
+    2,
+  );
+}
+
+function buildBatchPrompt(items: ClassifyItem[]): string {
+  // Keep signature used by older call sites; system prompt is item-agnostic.
+  void items;
+  return buildClassifySystemPrompt();
+}
+
+async function classifyChunk(
+  items: ClassifyItem[],
+  model: string,
+): Promise<ExtractedSignal[]> {
   const result = await generateText({
-    model: CLASSIFY_MODEL,
+    model,
     system: buildBatchPrompt(items),
-    prompt: JSON.stringify(
-      items.map((item) => ({
-        rawItemId: item.id,
-        source: item.source,
-        author: item.author,
-        authorHeadline: item.authorHeadline,
-        excerpt: item.excerpt,
-        url: item.url,
-        postedAt: item.postedAt,
-      })),
-      null,
-      2,
-    ),
+    prompt: buildClassifyUserPrompt(items),
     output: Output.object({
       schema: classificationResultSchema,
       name: "gravy_scout_classification",
@@ -100,6 +110,7 @@ async function classifyChunk(items: ClassifyItem[]): Promise<ExtractedSignal[]> 
 
 export async function classifyBatch(
   items: ClassifyItem[],
+  options: ClassifyOptions = {},
 ): Promise<ExtractedSignal[]> {
   if (items.length === 0) {
     return [];
@@ -112,12 +123,13 @@ export async function classifyBatch(
     return [];
   }
 
+  const model = resolveModel("classify", options.model);
   const allSignals: ExtractedSignal[] = [];
 
   for (let index = 0; index < items.length; index += BATCH_SIZE) {
     const chunk = items.slice(index, index + BATCH_SIZE);
     try {
-      const signals = await classifyChunk(chunk);
+      const signals = await classifyChunk(chunk, model);
       allSignals.push(...signals);
     } catch (error) {
       console.warn(

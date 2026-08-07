@@ -8,7 +8,9 @@
     "skipLibCheck": true,
     "noEmit": true,
     "rootDir": ".",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "resolveJsonModule": true
   },
   "include": [
@@ -21,5 +23,12 @@
     "capture/**/*.ts",
     "scripts/**/*.ts"
   ],
-  "exclude": ["node_modules", ".eve", "dist", ".next", "app", "components"]
+  "exclude": [
+    "node_modules",
+    ".eve",
+    "dist",
+    ".next",
+    "app",
+    "components"
+  ]
 }

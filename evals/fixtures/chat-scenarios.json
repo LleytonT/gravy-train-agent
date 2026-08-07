@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "description": "Chat / tool-use scenarios. Offline runner checks fixture shape; live runner (EVAL_LIVE=1 + agent URL) asserts tool names when the session API is available.",
+  "cases": [
+    {
+      "id": "score-modal",
+      "prompt": "Why did you score Modal highly? Walk me through the signals.",
+      "expectedToolsAnyOf": ["get_company_dossier", "score_company"],
+      "notes": "Dossier questions must use tools; never invent score math."
+    },
+    {
+      "id": "fireworks-dossier",
+      "prompt": "What is Fireworks AI and why is it interesting for APAC GTM?",
+      "expectedToolsAnyOf": ["get_company_dossier"],
+      "notes": "Company explainers start from the dossier."
+    },
+    {
+      "id": "update-prefs-hyperscalers",
+      "prompt": "More hyperscalers, less seed-stage stuff from now on.",
+      "expectedToolsAnyOf": ["update_user_profile"],
+      "notes": "Preference corrections must call update_user_profile in the same turn."
+    },
+    {
+      "id": "add-watchlist-sierra",
+      "prompt": "Add Sierra to my watchlist as hot.",
+      "expectedToolsAnyOf": ["update_watchlist"],
+      "notes": "Watchlist changes must hit update_watchlist."
+    },
+    {
+      "id": "list-opportunities",
+      "prompt": "What opportunities are open right now?",
+      "expectedToolsAnyOf": ["list_opportunities"],
+      "notes": "Opportunity inventory should use the list tool."
+    },
+    {
+      "id": "empty-feed-honesty",
+      "prompt": "Run the nightly scout and tell me what you found.",
+      "expectedToolsAnyOf": ["get_new_feed_items", "log_run_summary"],
+      "forbiddenBehaviors": [
+        "Invent feed posts when get_new_feed_items returns empty"
+      ],
+      "notes": "If capture is empty, say so — do not fabricate items."
+    }
+  ]
+}

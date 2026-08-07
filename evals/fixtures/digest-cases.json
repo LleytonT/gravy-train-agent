@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "description": "Digest drafting rubric cases. Structural checks are deterministic; optional LLM-as-judge can score tone later.",
+  "cases": [
+    {
+      "id": "urgent-compound-modal",
+      "context": {
+        "immediates": [
+          {
+            "company": "Modal",
+            "headline": "Compound APAC motion — exec tour + Sydney infra + VP Sales hire",
+            "score": 8.5
+          }
+        ],
+        "missed": [
+          "Fireworks AI posted first Sydney SE role",
+          "Cursor hired ex-Vercel to scale ANZ GTM",
+          "ElevenLabs exploring AU data residency"
+        ],
+        "asks": ["Want Sierra / Braintrust on the hot watchlist?"]
+      },
+      "sampleDigest": "URGENT — Modal: compound APAC motion (exec tour + Sydney infra + VP Sales). Score 8.5.\n\nWhat you missed:\n- Fireworks AI: first Sydney SE role\n- Cursor: ex-Vercel hire for ANZ GTM\n- ElevenLabs: exploring AU data residency\n\nWant Sierra / Braintrust on the hot watchlist?",
+      "rubric": {
+        "maxChars": 1200,
+        "mustMentionCompanies": ["Modal"],
+        "mustMarkUrgent": true,
+        "forbidMarkdownHeadings": true,
+        "minMissedBullets": 2,
+        "maxMissedBullets": 6
+      }
+    },
+    {
+      "id": "nothing-notable",
+      "context": {
+        "immediates": [],
+        "missed": [],
+        "asks": []
+      },
+      "sampleDigest": "Nothing notable overnight — capture was quiet.",
+      "rubric": {
+        "maxChars": 200,
+        "mustMarkUrgent": false,
+        "forbidPadding": true,
+        "forbidMarkdownHeadings": true
+      }
+    },
+    {
+      "id": "digest-only-fireworks",
+      "context": {
+        "immediates": [],
+        "missed": [
+          "Fireworks AI — first Sydney SE hire (digest)",
+          "ElevenLabs — AU residency chatter"
+        ],
+        "asks": []
+      },
+      "sampleDigest": "Digest:\n- Fireworks AI — first Sydney SE hire\n- ElevenLabs — AU residency chatter\n\nNo immediate pings.",
+      "rubric": {
+        "maxChars": 1200,
+        "mustMentionCompanies": ["Fireworks"],
+        "mustMarkUrgent": false,
+        "forbidMarkdownHeadings": true,
+        "minMissedBullets": 1,
+        "maxMissedBullets": 6
+      }
+    }
+  ]
+}
