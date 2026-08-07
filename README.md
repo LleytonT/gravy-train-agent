@@ -103,23 +103,31 @@ curl -X POST http://127.0.0.1:3000/eve/v1/dev/schedules/nightly_scout
 
 Port may vary — check the Eve dev server URL. Inspect the session stream for the digest.
 
-## Telegram (primary messaging)
+## Telegram (primary messaging + web auth)
 
 1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token and username.
-2. Set env (local `.env` + Vercel):
+2. Register the Login Widget domain (required for the embedded widget; deep-link login still works without it):
+   ```
+   /setdomain → @YourBot → gravy.sh
+   ```
+   Use the hostname only — no `https://`, path, or trailing slash. Also add `https://gravy.sh` under BotFather → Login Widget → Allowed URLs if you use the newer Web Login UI.
+3. Set env (local `.env` + Vercel):
    ```bash
    vercel env add TELEGRAM_BOT_TOKEN production
    vercel env add TELEGRAM_BOT_USERNAME production
    vercel env add TELEGRAM_WEBHOOK_SECRET_TOKEN production   # openssl rand -hex 32
+   vercel env add TELEGRAM_LOGIN_DOMAIN production           # gravy.sh
    ```
-3. Deploy, then register the webhook (eve does **not** call `setWebhook` for you):
+4. Deploy, then register the webhook (eve does **not** call `setWebhook` for you):
    ```bash
    curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
      -H "Content-Type: application/json" \
      -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
    ```
-4. Open the web app → onboarding → **Open @your_bot and tap Start** → consent to updates.
-5. Chat inbound on Telegram; nightly digests via `send_telegram_message` when linked + consented.
+5. Open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
+6. Chat inbound on Telegram; nightly digests via `send_telegram_message` when linked + consented.
+
+If the widget renders **Bot domain invalid**, the deep-link button still signs members in. Fix the widget by re-running `/setdomain` for `gravy.sh`.
 
 ## WhatsApp (optional fallback)
 

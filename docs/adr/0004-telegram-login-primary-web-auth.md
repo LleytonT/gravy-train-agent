@@ -21,5 +21,6 @@ GS-002 provisioned Clerk for multi-member web auth. Product intent is Telegram-f
 - Members can see first recommendations before verifying.
 - Telegram is both channel and primary identity proof for web entry.
 - Clerk keys are no longer required for the happy path.
-- BotFather must allow the production domain for the Login Widget.
-- Deep-link tokens remain useful for reconnect flows and non-Login channel binding.
+- BotFather should allow the production domain (`gravy.sh`) for the Login Widget via `/setdomain`.
+- When the widget domain is missing, web auth falls back to a one-time deep-link login challenge (pending member + `/start` consume + browser poll) so “Bot domain invalid” does not block entry.
+- Deep-link tokens also remain useful for reconnect flows and non-Login channel binding.

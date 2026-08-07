@@ -8,7 +8,7 @@ import {
 } from "../lib/conversation.js";
 import {
   ChannelLinkError,
-  consumeTelegramLinkToken,
+  consumeTelegramDeepLink,
   findMemberByTelegramUserId,
   touchTelegramIdentityUsername,
 } from "../lib/identity.js";
@@ -117,10 +117,15 @@ export default telegramChannel({
       }
 
       try {
-        const identity = await consumeTelegramLinkToken({
+        const displayName = [from.firstName, from.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        const { kind, identity } = await consumeTelegramDeepLink({
           token: start.token,
           telegramUserId: from.id,
           username: from.username,
+          displayName: displayName || null,
         });
         await persistChatDestination({
           memberId: identity.memberId,
@@ -128,10 +133,10 @@ export default telegramChannel({
           username: from.username,
           consentUpdates: true,
         });
-        // Record the link confirmation on the canonical timeline.
+        // Record the link/login confirmation on the canonical timeline.
         const conversation = await getOrCreateActiveConversation(
           identity.memberId,
-          { title: "Telegram link" },
+          { title: kind === "login" ? "Telegram login" : "Telegram link" },
         );
         await beginSurfaceTurn({
           memberId: identity.memberId,
@@ -142,18 +147,23 @@ export default telegramChannel({
           externalMessageId: message.messageId,
           titleFromBody: false,
         });
+        const assistantBody =
+          kind === "login"
+            ? "You're signed in. Return to the browser to continue — web and Telegram share the same conversation."
+            : "Telegram linked. You can keep chatting here or on the web — same conversation.";
         await completeSurfaceTurn({
           memberId: identity.memberId,
           conversationId: conversation.id,
           surface: "telegram",
-          assistantBody:
-            "Telegram linked. You can keep chatting here or on the web — same conversation.",
-          assistantIdempotencyKey: `telegram:link:${message.messageId}`,
-          eveSessionId: `telegram-link:${message.messageId}`,
+          assistantBody,
+          assistantIdempotencyKey: `telegram:${kind}:${message.messageId}`,
+          eveSessionId: `telegram-${kind}:${message.messageId}`,
         });
         return replyAndDrop(
           ctx,
-          "Telegram linked to your Gravy Scout account. You can keep chatting here or on the web — same conversation.",
+          kind === "login"
+            ? "You're signed in to Gravy Scout. Return to the browser tab to continue."
+            : "Telegram linked to your Gravy Scout account. You can keep chatting here or on the web — same conversation.",
         );
       } catch (err) {
         if (err instanceof ChannelLinkError) {
