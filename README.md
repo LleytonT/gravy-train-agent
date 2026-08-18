@@ -136,19 +136,31 @@ curl -X POST http://127.0.0.1:3000/eve/v1/dev/schedules/nightly_scout
 
 Runs claim idempotently, process source items, derive cited signals, refresh dossiers, score member opportunities (`scoring.ts@v1`), and send a digest only on material change. See [`docs/discovery.md`](./docs/discovery.md).
 
-## Telegram (primary messaging)
+## Telegram (primary messaging + web auth)
 
-1. [@BotFather](https://t.me/BotFather) → `/newbot` → token + username. Enable the Login Widget domain.
-2. Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET_TOKEN` (local `.env` + Vercel).
-3. Deploy, then register the webhook (Eve does **not** call `setWebhook` for you):
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token and username.
+2. Register the Login Widget domain (required for the embedded widget; deep-link login still works without it):
+   ```
+   /setdomain → @YourBot → gravy.sh
+   ```
+   Use the hostname only — no `https://`, path, or trailing slash. Also add `https://gravy.sh` under BotFather → Login Widget → Allowed URLs if you use the newer Web Login UI.
+3. Set env (local `.env` + Vercel):
+   ```bash
+   vercel env add TELEGRAM_BOT_TOKEN production
+   vercel env add TELEGRAM_BOT_USERNAME production
+   vercel env add TELEGRAM_WEBHOOK_SECRET_TOKEN production   # openssl rand -hex 32
+   vercel env add TELEGRAM_LOGIN_DOMAIN production           # gravy.sh
+   ```
+4. Deploy, then register the webhook (Eve does **not** call `setWebhook` for you):
+   ```bash
+   curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+     -H "Content-Type: application/json" \
+     -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
+   ```
+5. Open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
+6. Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
 
-```bash
-curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
-```
-
-Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
+If the widget renders **Bot domain invalid**, the deep-link button still signs members in. Fix the widget by re-running `/setdomain` for `gravy.sh`.
 
 ## WhatsApp (optional fallback)
 

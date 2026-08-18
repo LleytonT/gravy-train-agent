@@ -76,8 +76,8 @@ async function main() {
     "utf8",
   );
   assert(
-    telegramChannel.includes("consumeTelegramLinkToken"),
-    "telegram channel must consume link tokens on /start",
+    telegramChannel.includes("consumeTelegramDeepLink"),
+    "telegram channel must consume deep-link login/link tokens on /start",
   );
   assert(
     telegramChannel.includes("beginSurfaceTurn"),

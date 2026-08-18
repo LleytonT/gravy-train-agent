@@ -30,8 +30,31 @@ async function main() {
   process.env.MEMBER_SESSION_SECRET =
     process.env.MEMBER_SESSION_SECRET?.trim() || `smoke-session-${randomUUID()}`;
 
-  const { verifyTelegramLoginPayload } = await import(
-    "../agent/lib/telegram-login.js"
+  const {
+    probeTelegramLoginDomain,
+    resolveTelegramLoginDomain,
+    resolveTelegramLoginOrigin,
+    verifyTelegramLoginPayload,
+  } = await import("../agent/lib/telegram-login.js");
+
+  process.env.TELEGRAM_LOGIN_DOMAIN = "gravy.sh";
+  assert(resolveTelegramLoginDomain() === "gravy.sh", "login domain hostname");
+  assert(
+    resolveTelegramLoginOrigin() === "https://gravy.sh",
+    "login origin https",
+  );
+
+  const button = readFileSync(
+    resolve("components/auth/telegram-login-button.tsx"),
+    "utf8",
+  );
+  assert(
+    button.includes("/api/auth/telegram/challenge"),
+    "login button must support deep-link challenge fallback",
+  );
+  assert(
+    button.includes("widgetDomainValid"),
+    "login button must gate the Login Widget on domain probe",
   );
   const {
     signMemberSessionToken,
@@ -47,6 +70,7 @@ async function main() {
 
   const telegramUserId = String(Math.floor(1e9 + Math.random() * 1e9));
   const fields: Record<string, string> = {
+    allows_write_to_pm: "true",
     auth_date: String(Math.floor(Date.now() / 1000)),
     first_name: "Smoke",
     id: telegramUserId,
@@ -66,10 +90,29 @@ async function main() {
     first_name: fields.first_name,
     username: fields.username,
     auth_date: fields.auth_date,
+    allows_write_to_pm: true,
     hash,
   };
   const verified = verifyTelegramLoginPayload(payload);
   assert(verified.telegramUserId === telegramUserId, "verified id mismatch");
+  assert(verified.allowsWriteToPm === true, "write access flag missing");
+
+  // Stripping allows_write_to_pm must fail — this is the production bug class.
+  try {
+    verifyTelegramLoginPayload({
+      id: fields.id,
+      first_name: fields.first_name,
+      username: fields.username,
+      auth_date: fields.auth_date,
+      hash,
+    });
+    throw new Error("expected signature mismatch without allows_write_to_pm");
+  } catch (error) {
+    assert(
+      error instanceof Error && /signature mismatch/i.test(error.message),
+      "missing write flag should mismatch",
+    );
+  }
 
   let memberId: string | null = null;
   let databaseChecked = false;
@@ -126,6 +169,54 @@ async function main() {
     });
     const claims = await verifyMemberSessionToken(token);
     assert(claims?.authenticator === "telegram", "session authenticator");
+  } else {
+    const {
+      createTelegramLoginChallenge,
+      consumeTelegramDeepLink,
+      getTelegramLoginChallengeStatus,
+    } = await import("../agent/lib/identity.js");
+    const challenge = await createTelegramLoginChallenge();
+    assert(challenge.deepLink?.includes("t.me/"), "challenge deep link");
+    const pending = await getTelegramLoginChallengeStatus(challenge.challengeId);
+    assert(pending.status === "pending", "challenge starts pending");
+
+    const loginUserId = String(Math.floor(1e9 + Math.random() * 1e9));
+    const consumed = await consumeTelegramDeepLink({
+      token: challenge.challengeId,
+      telegramUserId: loginUserId,
+      username: "challenge_user",
+      displayName: "Challenge User",
+    });
+    assert(consumed.kind === "login", "deep link login kind");
+    const ready = await getTelegramLoginChallengeStatus(challenge.challengeId);
+    assert(ready.status === "ready", "challenge becomes ready");
+    assert(
+      ready.status === "ready" && ready.telegramUserId === loginUserId,
+      "ready telegram id",
+    );
+
+    const db = getDb();
+    await db
+      .delete(channelIdentities)
+      .where(eq(channelIdentities.memberId, consumed.member.id));
+    await db.delete(members).where(eq(members.id, consumed.member.id));
+  }
+
+  const domainProbe = await probeTelegramLoginDomain({
+    botUsername: "GravyScoutBot",
+    origin: "https://gravy.sh",
+  });
+  assert(
+    domainProbe.domain === "gravy.sh",
+    "probe reports configured domain",
+  );
+  // Production currently lacks /setdomain — probe should detect invalid domain
+  // when network is available; tolerate transient probe failures in CI.
+  if (domainProbe.widgetDomainValid !== null) {
+    assert(
+      typeof domainProbe.widgetDomainValid === "boolean",
+      "probe returns boolean validity",
+    );
   }
 
   console.log(
@@ -135,6 +226,8 @@ async function main() {
         telegramUserId,
         memberId,
         databaseChecked,
+        widgetDomainValid: domainProbe.widgetDomainValid,
+        loginDomain: domainProbe.domain,
       },
       null,
       2,
