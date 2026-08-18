@@ -20,7 +20,7 @@ Clerk is useful managed email auth, but Gravy Scout's product surface already de
 
 1. Member completes career snapshot on `/get-started` and previews matches without signing in.
 2. At “Save & enter workspace”, they verify with Telegram.
-3. **Preferred when BotFather domain is set:** the Login Widget posts to `POST /api/auth/telegram`, which verifies the widget HMAC, upserts the member via `upsertMemberFromTelegramLogin`, binds `channel_identities`, and sets an httpOnly `gs_member_session` JWT.
+3. `POST /api/auth/telegram` verifies the widget HMAC over **all** received fields (including `allows_write_to_pm` when write access was requested), upserts the member via `upsertMemberFromTelegramLogin`, binds `channel_identities`, and sets an httpOnly `gs_member_session` JWT.
 4. **Fallback when the widget shows “Bot domain invalid”:** `POST /api/auth/telegram/challenge` mints a pending member + one-time `t.me` deep link. After the member taps Start, the Telegram webhook consumes the token and the browser polls until it can mint the same session cookie.
 5. Eve accepts that JWT through `memberSessionAuth()`.
 

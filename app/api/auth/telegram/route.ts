@@ -14,24 +14,32 @@ import {
   memberSessionCookieOptions,
 } from "@/lib/auth/session-cookie";
 
-const bodySchema = z.object({
-  id: z.union([z.number(), z.string()]),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  username: z.string().optional(),
-  photo_url: z.string().optional(),
-  auth_date: z.union([z.number(), z.string()]),
-  hash: z.string().min(1),
-});
+const bodySchema = z
+  .object({
+    id: z.union([z.number(), z.string()]),
+    first_name: z.string().optional(),
+    last_name: z.string().optional(),
+    username: z.string().optional(),
+    photo_url: z.string().optional(),
+    auth_date: z.union([z.number(), z.string()]),
+    hash: z.string().min(1),
+    // Signed when data-request-access="write". Must not be stripped before HMAC.
+    allows_write_to_pm: z.union([z.boolean(), z.string(), z.number()]).optional(),
+  })
+  // Keep any future signed fields Telegram adds to the widget payload.
+  .passthrough();
 
 export async function GET() {
   const configured = isTelegramLoginConfigured();
   const botUsername =
     process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "") ?? null;
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "";
+  const tokenBotId = token.includes(":") ? token.split(":")[0] : null;
   const domain = configured ? await probeTelegramLoginDomain({ botUsername }) : null;
   return NextResponse.json({
     configured,
     botUsername,
+    tokenBotId,
     loginDomain: domain?.domain ?? null,
     loginOrigin: domain?.origin ?? null,
     widgetDomainValid: domain?.widgetDomainValid ?? null,
@@ -58,6 +66,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Verify the full parsed object (passthrough keeps allows_write_to_pm etc.).
     const verified = verifyTelegramLoginPayload(parsed.data);
     const member = await upsertMemberFromTelegramLogin({
       telegramUserId: verified.telegramUserId,

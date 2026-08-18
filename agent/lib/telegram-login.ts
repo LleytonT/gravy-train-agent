@@ -14,6 +14,9 @@ export type TelegramLoginPayload = {
   photo_url?: string;
   auth_date: number | string;
   hash: string;
+  /** Present when the widget used data-request-access="write". Must be part of HMAC. */
+  allows_write_to_pm?: boolean | string | number;
+  [key: string]: unknown;
 };
 
 export type TelegramLoginDomainStatus = {
@@ -171,14 +174,31 @@ export async function probeTelegramLoginDomain(input?: {
   }
 }
 
+function fieldValueToCheckString(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  // Telegram only signs primitive fields; ignore unexpected objects.
+  return null;
+}
+
+/**
+ * Verify a Login Widget auth payload.
+ * Important: every received field except `hash` must enter the check string —
+ * including `allows_write_to_pm` when `data-request-access="write"` is set.
+ * Stripping unknown keys before verification causes signature mismatches.
+ */
 export function verifyTelegramLoginPayload(
-  payload: TelegramLoginPayload,
+  payload: TelegramLoginPayload | Record<string, unknown>,
 ): {
   telegramUserId: string;
   username: string | null;
   displayName: string | null;
   photoUrl: string | null;
   authDate: number;
+  allowsWriteToPm: boolean;
 } {
   const token = botToken();
   if (!token) {
@@ -189,15 +209,23 @@ export function verifyTelegramLoginPayload(
     );
   }
 
-  const hash = typeof payload.hash === "string" ? payload.hash.trim() : "";
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new TelegramLoginError("invalid", "Telegram login payload is invalid");
+  }
+
+  const record = payload as Record<string, unknown>;
+  const hashRaw = record.hash;
+  const hash = typeof hashRaw === "string" ? hashRaw.trim() : "";
   if (!hash || !/^[a-f0-9]{64}$/i.test(hash)) {
     throw new TelegramLoginError("invalid", "Telegram login hash is invalid");
   }
 
   const fields: Record<string, string> = {};
-  for (const [key, value] of Object.entries(payload)) {
-    if (key === "hash" || value === undefined || value === null) continue;
-    fields[key] = String(value);
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "hash") continue;
+    const asString = fieldValueToCheckString(value);
+    if (asString === null) continue;
+    fields[key] = asString;
   }
 
   const checkString = Object.keys(fields)
@@ -214,7 +242,13 @@ export function verifyTelegramLoginPayload(
     expectedBuf.length !== actualBuf.length ||
     !timingSafeEqual(expectedBuf, actualBuf)
   ) {
-    throw new TelegramLoginError("invalid", "Telegram login signature mismatch");
+    const tokenBotId = token.split(":")[0] ?? "";
+    throw new TelegramLoginError(
+      "invalid",
+      tokenBotId
+        ? "Telegram login signature mismatch (check TELEGRAM_BOT_TOKEN matches the widget bot, and that all auth fields are forwarded)"
+        : "Telegram login signature mismatch",
+    );
   }
 
   const authDate = Number(fields.auth_date);
@@ -235,6 +269,15 @@ export function verifyTelegramLoginPayload(
   const displayName = [first, last].filter(Boolean).join(" ") || null;
   const username = fields.username?.replace(/^@/, "").trim() || null;
   const photoUrl = fields.photo_url?.trim() || null;
+  const allowsWriteToPm =
+    fields.allows_write_to_pm === "true" || fields.allows_write_to_pm === "1";
 
-  return { telegramUserId, username, displayName, photoUrl, authDate };
+  return {
+    telegramUserId,
+    username,
+    displayName,
+    photoUrl,
+    authDate,
+    allowsWriteToPm,
+  };
 }

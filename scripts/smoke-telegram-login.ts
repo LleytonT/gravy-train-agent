@@ -70,6 +70,7 @@ async function main() {
 
   const telegramUserId = String(Math.floor(1e9 + Math.random() * 1e9));
   const fields: Record<string, string> = {
+    allows_write_to_pm: "true",
     auth_date: String(Math.floor(Date.now() / 1000)),
     first_name: "Smoke",
     id: telegramUserId,
@@ -89,10 +90,29 @@ async function main() {
     first_name: fields.first_name,
     username: fields.username,
     auth_date: fields.auth_date,
+    allows_write_to_pm: true,
     hash,
   };
   const verified = verifyTelegramLoginPayload(payload);
   assert(verified.telegramUserId === telegramUserId, "verified id mismatch");
+  assert(verified.allowsWriteToPm === true, "write access flag missing");
+
+  // Stripping allows_write_to_pm must fail — this is the production bug class.
+  try {
+    verifyTelegramLoginPayload({
+      id: fields.id,
+      first_name: fields.first_name,
+      username: fields.username,
+      auth_date: fields.auth_date,
+      hash,
+    });
+    throw new Error("expected signature mismatch without allows_write_to_pm");
+  } catch (error) {
+    assert(
+      error instanceof Error && /signature mismatch/i.test(error.message),
+      "missing write flag should mismatch",
+    );
+  }
 
   let memberId: string | null = null;
   let databaseChecked = false;
