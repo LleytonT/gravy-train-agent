@@ -1,146 +1,183 @@
 # Gravy Scout
 
-Personalized opportunity-intelligence agent built on [Eve](https://eve.dev), Vercel's filesystem-first agent framework.
+Personalized opportunity-intelligence agent built on [Eve](https://eve.dev), Vercel’s filesystem-first agent framework.
 
-The repository currently contains a single-user prototype for APAC tech-sales discovery. It demonstrates deterministic company scoring, role personalization, dossiers, web chat, Telegram delivery, and local LinkedIn/X capture. It does **not** yet provide multi-user persistence or genuinely synchronized web/Telegram conversations.
+Gravy Scout learns a member’s background and goals, ingests job-board alerts through a unique inbound email address, researches public expansion and hiring evidence, and surfaces advertised, likely, and non-obvious opportunities with citations. It is not a job-board scraper, auto-application bot, or autonomous outreach tool.
 
-The target product learns a member's background and goals, ingests job-board alerts through email, researches public expansion and hiring evidence, and surfaces advertised, likely, and non-obvious opportunities with citations. Start with:
+The original single-user prototype (shared Markdown profile, browser-local chat, anonymous Eve HTTP, Playwright LinkedIn/X capture as a member journey) has been replaced. Tickets **GS-001 through GS-009** are implemented on `main`.
+
+Start with:
 
 1. [`CONTEXT.md`](./CONTEXT.md) — canonical domain language
 2. [`docs/specs/gravy-scout-v1.md`](./docs/specs/gravy-scout-v1.md) — product specification
-3. [`docs/architecture/target-architecture.md`](./docs/architecture/target-architecture.md) — selected architecture and migration rationale
-4. [`docs/tickets/README.md`](./docs/tickets/README.md) — dependency-ordered agent work
+3. [`docs/architecture/target-architecture.md`](./docs/architecture/target-architecture.md) — selected architecture
+4. [`docs/tickets/README.md`](./docs/tickets/README.md) — tracer-bullet map (all slices landed)
 
-The remaining sections document how to run and inspect the current prototype while it is migrated.
+## Where the project stands
+
+| Slice | Status |
+| --- | --- |
+| GS-001 Neon Postgres system of record | Shipped |
+| GS-002 Member identity (Telegram session + optional Clerk) | Shipped |
+| GS-003 Structured career profile + preference provenance | Shipped |
+| GS-004 Canonical conversation (web ↔ Telegram timeline) | Shipped |
+| GS-005 Secure Telegram linking, quiet hours, digest delivery | Shipped |
+| GS-006 Resend inbound job-alert email | Shipped |
+| GS-007 Deterministic discovery orchestrator + subagents | Shipped |
+| GS-008 Public product pages + `/app` workspace (Today / Opportunities / Conversation / Profile) | Shipped |
+| GS-009 Eve eval fixture suite | Shipped |
+
+**Member journey today:** public `/` and `/how-it-works` → `/get-started` (career snapshot, goals, match preview with no login) → Telegram Login Widget to enter `/app` → inbound alert address on Profile → nightly discovery → ranked opportunities with evidence, fit, and disposition.
+
+Web and Telegram keep **separate Eve sessions** (Eve continuation tokens are channel-local). Members see **one Postgres conversation**. Career profile, preferences, opportunities, and messaging consent live in Neon — not in `user-profile.md` or browser storage.
+
+Still outside v1 / not built:
+
+- Account export and deletion
+- Broad mailbox OAuth (deferred; inbound forwarding is the path)
+- Autonomous apply / send / post
+- Member-facing LinkedIn or X scraping (local Playwright remains a **developer-only** experiment)
+- Native mobile apps
+- CI workflow for evals (commands exist; no `.github` workflow yet)
 
 ## Stack
 
 | Layer | Choice |
 | --- | --- |
-| Agent | Eve (`agent/` filesystem layout) |
-| Web UI | Next.js + `useEveAgent` (same-origin `/eve/v1/*` via `withEve`) |
-| Models | AI Gateway — Sonnet for chat/synthesis, Haiku for batch classify |
-| DB | Neon Postgres + Drizzle migrations |
-| Capture | Playwright, your logged-in browser profile (read-only) |
-| Messaging | **Telegram** (primary) · Twilio WhatsApp optional fallback |
+| Runtime | Node 24 (`engines.node: 24.x`; Eve hard-fails on older Node) |
+| Web | Next.js 16 App Router + `withEve` (same-origin `/eve/v1/*`) |
+| UI | shadcn/ui + Tailwind 4 |
+| Agent | Eve (`agent/` filesystem: tools, skills, channels, schedules, subagents, evals) |
+| Models | Vercel AI Gateway — Sonnet-class for chat/synthesis (`AGENT_MODEL`), Haiku for batch classify (`CLASSIFY_MODEL`) |
+| DB | Neon Postgres + Drizzle migrations (`DATABASE_URL` pooled, `DATABASE_URL_UNPOOLED` for migrate) |
+| Auth | **Telegram Login Widget** (primary) + optional Clerk email; Eve: `memberSessionAuth` → Clerk → Vercel OIDC → local-dev. No anonymous `none()`. |
+| Email | Resend inbound on `gravy.sh` (`gs_…@gravy.sh` per member) |
+| Messaging | Telegram (primary chat + digests) · Twilio WhatsApp optional fallback |
+| Capture | Playwright against a local browser profile — **not** part of the member product |
 
-## Quick start (Phase 1)
+## Quick start
 
 ```bash
 # Node 24+
 cp .env.example .env
-# Add AI_GATEWAY_API_KEY (or `vercel link` + OIDC)
+# Pull Marketplace secrets (Neon, optional Clerk, Resend):
+#   pnpm dlx vercel env pull .env.local --yes
+# Add AI_GATEWAY_API_KEY for agent chat / classification.
+# Add TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME for Login Widget + bot.
 
 pnpm install
 pnpm db:migrate    # apply committed migrations to DATABASE_URL_UNPOOLED
-pnpm seed          # fake Modal/Fireworks/Cursor/ElevenLabs dossiers
-pnpm dev           # Next.js chat UI + Eve agent (http://localhost:3000)
+pnpm seed          # fake Modal/Fireworks/Cursor/ElevenLabs/Decagon/Sierra dossiers
+pnpm dev           # Next.js + Eve (http://localhost:3000)
 pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Provision Neon through the Vercel Marketplace and pull `.env.local` before migrating. Demo data is created only by the explicit `pnpm seed` command; production cold starts never seed automatically. Open the web app — first visit runs the prototype setup (role → optional Telegram details → matches), then auto-starts the career-advisor chat. Without `AI_GATEWAY_API_KEY`, seeded matches still work; agent chat needs the key. Telegram and web currently use separate Eve sessions, and the web thread list is browser-local.
+Open `/` → **See your first matches**. Snapshot and goals are public; “Save & enter workspace” verifies with Telegram. Clerk email sign-in is optional when Clerk keys are present.
 
-To refresh Career Identity from a logged-in browser profile:
+Without `AI_GATEWAY_API_KEY` the server still boots: scoring, personalization, seed dossiers, and most smoke scripts work. Chat, classification, and discovery research that call a model return `GatewayAuthenticationError` (401).
 
-```bash
-pnpm capture:profile -- --headed   # first run: log in once
-pnpm capture:profile               # thereafter
-```
+Demo data is created only by `pnpm seed`. Production cold starts never seed and never `CREATE TABLE`. Missing Postgres fails closed.
 
-Or tell the agent your title/company/location in chat — it calls `ingest_linkedin_profile`.
-
-Browse `/how-it-works` for the nightly workflow diagram (public). Chat, onboarding, and Eve HTTP require Clerk sign-in. See `docs/auth.md`. Job-alert ingestion uses a Resend inbound address per member — see `docs/inbound-email.md` and signed-in `/profile`.
-
-## Project layout (Eve conventions)
+## Project layout
 
 ```
-app/                       # Next.js App Router chat UI
-components/chat/           # sidebar, empty state, composer, message parts
-next.config.ts             # withEve() mounts agent routes same-origin
+app/                       # Next.js App Router
+  page.tsx                 # public landing
+  get-started/             # progressive onboarding (no login until verify)
+  how-it-works/            # public nightly-workflow diagram
+  app/                     # signed-in shell: Today, Opportunities, Conversation, Profile
+  api/                     # onboarding, auth, conversations, opportunities, inbound, telegram
+components/
+  onboarding/ product/ chat/ auth/ ui/
 agent/
-  agent.ts                 # Sonnet-class model via AI Gateway
-  instructions.md          # persona + ping rules
-  skills/                  # opportunity-signals, scoring, nightly-pipeline
+  agent.ts                 # Sonnet-class model via AI Gateway (mockModel under eval fixture)
+  instructions.md
+  skills/                  # opportunity-signals, scoring, nightly-pipeline, onboarding, linkedin-personalization
   tools/                   # snake_case Eve tools
-  schedules/nightly_scout.ts
+  subagents/               # job_alert_analyst, company_researcher, fit_analyst
+  schedules/nightly_scout.ts   # calls runDiscovery — not free-form tool chaining
   channels/                # eve, telegram, twilio, capture-sync
-  lib/                     # db, classify, scoring, profile, messaging
-  sandbox/workspace/memory/user-profile.md
-capture/                   # Playwright (runs on your Mac, not on Vercel)
-scripts/seed.ts
+  lib/                     # db, identity, career-profile, conversation, ingestion, discovery, scoring
+  sandbox/workspace/memory/user-profile.md   # legacy local projection only
+capture/                   # Playwright (developer Mac, not Vercel, not the member path)
+evals/                     # GS-009 deterministic Eve evals
+drizzle/                   # committed Postgres migrations
+docs/                      # spec, architecture, ADRs, tickets, module guides
 ```
 
-**Eve diffs vs the original build prompt (intentional):**
+**Eve conventions:** authored files live under `agent/`; tool filenames are snake_case; channels are kebab-case; skills are progressive-disclosure markdown (`load_skill`).
 
-- Authored files live under `agent/`, not repo root.
-- Tool filenames are snake_case (`get_new_feed_items.ts`); channels are kebab-case.
-- Skills are progressive-disclosure markdown (model calls `load_skill`).
-- Telegram is the primary push channel; WhatsApp remains an optional Twilio fallback.
-- Classification uses a **cheap model inside** `classify_feed_items`; the schedule still prompts the agent free-form.
-- Nightly cron is `0 13 * * *` UTC ≈ 23:00 AEST (DST drift during AEDT).
+## Auth and the `/app` workspace
 
-## Capture (Phase 2)
+Telegram Login is the primary web verification path. Completing `/get-started` and tapping the widget:
 
-```bash
-# First run — headed, log in once, profile persists at ./.browser-profile
-pnpm exec tsx capture/run-capture.ts --headed --dry-run --source=x
-pnpm exec tsx capture/run-capture.ts --headed --dry-run --source=linkedin
+1. `POST /api/auth/telegram` verifies the widget HMAC
+2. upserts the member and binds `channel_identities`
+3. sets an httpOnly `gs_member_session` JWT
+4. Eve accepts that JWT through `memberSessionAuth()`
 
-# Thereafter
-pnpm capture:dry -- --source=x
-pnpm capture
-```
+`proxy.ts` keeps marketing + get-started public. `/app/*` redirects to `/get-started?verify=1` when neither a member session nor Clerk session is present.
 
-Hard guardrails: read-only, 2–6s delays, ≤150 items/source, abort on login wall/captcha. See `capture/README.md`.
+Details: [`docs/auth.md`](./docs/auth.md), ADR 0004. Deep-link tokens remain for reconnect: [`docs/telegram-link.md`](./docs/telegram-link.md).
 
-## Nightly pipeline (Phase 3)
+## Inbound job alerts
+
+Each member gets a unique `gs_…@gravy.sh` address (Resend receiving on `gravy.sh`). Forward LinkedIn / Seek / Indeed alerts there — no mailbox OAuth. Webhook: `POST /api/inbound/resend`. Duplicates collapse on canonical job URL. See [`docs/inbound-email.md`](./docs/inbound-email.md).
+
+## Discovery and nightly pipeline
+
+`agent/lib/discovery/run.ts` is the single orchestrator. The Eve schedule `nightly_scout` (`0 13 * * *` UTC ≈ 23:00 AEST; DST drift during AEDT) and `pnpm test:discovery` share it.
 
 ```bash
 pnpm dev:no-ui
-# In another terminal — fire the schedule once:
+# In another terminal — fire the schedule once (port may vary):
 curl -X POST http://127.0.0.1:3000/eve/v1/dev/schedules/nightly_scout
 ```
 
-Port may vary — check the Eve dev server URL. Inspect the session stream for the digest.
+Runs claim idempotently, process source items, derive cited signals, refresh dossiers, score member opportunities (`scoring.ts@v1`), and send a digest only on material change. See [`docs/discovery.md`](./docs/discovery.md).
 
 ## Telegram (primary messaging)
 
-1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token and username.
-2. Set env (local `.env` + Vercel):
-   ```bash
-   vercel env add TELEGRAM_BOT_TOKEN production
-   vercel env add TELEGRAM_BOT_USERNAME production
-   vercel env add TELEGRAM_WEBHOOK_SECRET_TOKEN production   # openssl rand -hex 32
-   ```
-3. Deploy, then register the webhook (eve does **not** call `setWebhook` for you):
-   ```bash
-   curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
-     -H "Content-Type: application/json" \
-     -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
-   ```
-4. Open the web app → onboarding → **Open @your_bot and tap Start** → consent to updates.
-5. Chat inbound on Telegram; nightly digests via `send_telegram_message` when linked + consented.
+1. [@BotFather](https://t.me/BotFather) → `/newbot` → token + username. Enable the Login Widget domain.
+2. Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET_TOKEN` (local `.env` + Vercel).
+3. Deploy, then register the webhook (Eve does **not** call `setWebhook` for you):
+
+```bash
+curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
+```
+
+Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
 
 ## WhatsApp (optional fallback)
 
-1. Twilio sandbox → set `TWILIO_*`, `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886`, `WHATSAPP_TO=whatsapp:+61…`
-2. Point Messaging webhook at `https://<deploy>/eve/v1/twilio/messages`
-3. Used only if Telegram is not linked and Twilio is configured.
+Twilio sandbox: `TWILIO_*`, `TWILIO_WHATSAPP_FROM`, `WHATSAPP_TO`. Messaging webhook: `https://<deploy>/eve/v1/twilio/messages`. Used only if Telegram is not linked and Twilio is configured. Unset Twilio env → channel returns 503 (expected in local dev).
 
-## Deploy + local capture sync (Phase 5)
+## Developer capture (not the member path)
+
+Local Playwright can scrape a logged-in LinkedIn/X feed or own profile. This is **not** a production member journey (`pnpm seed` and `/get-started` substitute). Hard guardrails: read-only, 2–6s delays, ≤150 items/source, abort on login wall/captcha. See [`capture/README.md`](./capture/README.md).
 
 ```bash
-# Hosted agent (Vercel) — Neon injects DATABASE_URL
-pnpm build
-vercel deploy
+pnpm capture:profile -- --headed   # optional: own LinkedIn → Career Identity
+pnpm exec tsx capture/run-capture.ts --headed --dry-run --source=linkedin
 
-# On your Mac — launchd/cron runs capture, then syncs:
+# After deploy, sync captured items to the hosted agent:
 CAPTURE_SYNC_URL=https://<deploy>/eve/v1/capture-sync/items \
 CAPTURE_SYNC_TOKEN=... \
 pnpm capture
 ```
 
-Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
+Example launchd plist: `scripts/com.gravyscout.capture.plist.example`. Capture-sync fails closed (503) when its token is unset.
+
+## Deploy
+
+```bash
+pnpm build          # Next.js (webpack; required for Eve *.js → .ts alias)
+vercel deploy       # Neon injects DATABASE_URL
+```
+
+Apply migrations against `DATABASE_URL_UNPOOLED` before serving member traffic. `pnpm build:eve` is the Eve Build Output command (`next.config.ts` → `eveBuildCommand`).
 
 ## Scripts
 
@@ -148,22 +185,39 @@ Example launchd plist: `scripts/com.gravyscout.capture.plist.example`.
 | --- | --- |
 | `pnpm dev` | Next.js chat UI + Eve agent (HMR) |
 | `pnpm dev:tui` | Eve HMR + terminal UI |
+| `pnpm dev:no-ui` | Headless Eve HTTP (schedules, capture-sync) |
 | `pnpm db:generate` | Generate a migration after editing the Drizzle schema |
 | `pnpm db:migrate` | Apply committed migrations using the direct Neon URL |
-| `pnpm test:database` | Verify two-member Postgres data isolation |
-| `pnpm test:auth` | Verify Clerk/Eve auth wiring and identity upserts |
-| `pnpm test:career-profile` | Verify structured profile precedence + résumé ingest |
-| `pnpm test:conversation` | Verify canonical conversation bridge + idempotency |
-| `pnpm test:telegram-link` | Verify secure Telegram link tokens, revocation, quiet hours |
-| `pnpm seed` | Seed fake dossiers + raw items |
-| `pnpm capture` / `capture:dry` | Playwright feed capture |
-| `pnpm capture:profile` | Playwright LinkedIn *own profile* → Career Identity |
-| `pnpm typecheck` | `tsc --noEmit` (web + agent) |
-| `pnpm test:scoring` | Smoke test scoring + role personalization |
+| `pnpm test:database` | Two-member Postgres isolation |
+| `pnpm test:auth` | Member-session / Clerk / Eve auth wiring + identity upserts |
+| `pnpm test:telegram-login` | Telegram Login Widget HMAC + session mint |
+| `pnpm test:career-profile` | Structured profile precedence + résumé ingest |
+| `pnpm test:conversation` | Canonical conversation bridge + idempotency |
+| `pnpm test:telegram-link` | Link tokens, revocation, quiet hours |
+| `pnpm test:inbound` | Job-alert parse, webhook verify, ingest dedupe |
+| `pnpm test:discovery` | Discovery claim/retry, evidence, constraints, noop digests |
+| `pnpm test:scoring` | Deterministic scoring + role personalization |
 | `pnpm test:evals` | Eve deterministic eval suite (GS-009 fixture agent) |
 | `pnpm test:evals:list` | List discovered Eve eval ids |
+| `pnpm seed` | Seed fake dossiers + source items |
+| `pnpm capture` / `capture:dry` | Playwright feed capture (dev only) |
+| `pnpm capture:profile` | Playwright LinkedIn own-profile → Career Identity (dev only) |
+| `pnpm typecheck` | `tsc --noEmit` (web + agent) |
 | `pnpm exec tsx scripts/verify-dossier.ts` | Confirm seed dossiers |
 
-## Prototype persistence warning
+Quality gates: `pnpm typecheck`, the `tsx` smoke scripts under `scripts/`, and `pnpm test:evals`. There is no separate linter or test runner.
 
-Web and Eve browser access require Clerk. Career profile/preferences/messaging are Postgres-backed (GS-003), conversations/messages are server-backed (GS-004), and Telegram links via one-time deep-link tokens (GS-005).
+Evals set `GRAVY_SCOUT_EVAL_FIXTURE=1` and use `mockModel` plus in-memory tool handlers so hard gates pass without AI Gateway or Neon. Do not set that env outside eval runs. See [`evals/README.md`](./evals/README.md).
+
+## Persistence
+
+| Concern | Source of truth |
+| --- | --- |
+| Members, career profile, preferences, feedback | Neon (`agent/lib/career-profile.ts`) |
+| Conversation + messages | Neon (`agent/lib/conversation.ts`) |
+| Source items, signals, dossiers, opportunities, discovery runs | Neon |
+| Telegram channel identity + link tokens | Neon (`agent/lib/identity.ts`) |
+| Eve session cursors | Per-surface rows on the conversation; not the product timeline |
+| `user-profile.md` | Legacy / local-only projection — do not extend |
+
+Module guides: [`docs/database.md`](./docs/database.md), [`docs/career-profile.md`](./docs/career-profile.md), [`docs/conversation.md`](./docs/conversation.md).
