@@ -137,4 +137,4 @@ Prior art: Telegram link/identity smokes, inbound smokes, discovery smokes, conv
 - This spec does not delete Eve web HTTP for local TUI or operator use; it removes web as a member talk **surface**.
 - Existing Login Widget and deep-link login-challenge code can stay dormant for a future dashboard; cold start must not depend on them.
 - `docs/specs/gravy-scout-v1.md` still describes opportunity intelligence; it is wrong where it treats Clerk as primary auth and web as a synchronized chat **surface**. Prefer this spec plus ADR-0005, ADR-0006, and ADR-0007 for those topics.
-- Decompose with `/to-tickets` before parallel agents implement. The work is one product shape, several vertical slices (cold-start identity, get-started CTA, inbound address in Telegram, **digest** send, **proposed action** approval).
+- Tracer bullets: GS-011 cold-start, GS-012 get-started, GS-013 inbound address in Telegram, GS-014 **digests**, GS-015 **proposed action** yes. Do not implement GS-010 as one slice.
