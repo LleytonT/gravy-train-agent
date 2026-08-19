@@ -54,6 +54,9 @@ async function main() {
   const { parseTelegramCallback } = await import(
     "../agent/lib/telegram-cards.js"
   );
+  const { extractDocumentText, looksLikeConnectionsCsv } = await import(
+    "../agent/lib/telegram-documents.js"
+  );
 
   const bare = parseStartPayload("/start");
   assert(bare.isStart && bare.token === null, "bare /start is a start with no token");
@@ -95,6 +98,16 @@ async function main() {
   assert(
     nextDigestLabel("realtime").includes("scan"),
     "realtime digest label",
+  );
+
+  const csv = "First Name,Last Name,Email Address,Company\nAda,Lovelace,a@b.c,Analytical\n";
+  assert(
+    looksLikeConnectionsCsv("Connections.csv", csv),
+    "connections csv detected by name",
+  );
+  assert(
+    extractDocumentText(Buffer.from(csv), "Connections.csv", "text/csv").includes("Lovelace"),
+    "csv text extract",
   );
 
   if (!process.env.DATABASE_URL?.trim()) {
