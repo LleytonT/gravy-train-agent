@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for GS-008.
+Superseded by ADR-0005.
 
 ## Context
 
