@@ -44,42 +44,12 @@ export async function GET() {
 }
 
 /**
- * Local-only: mint a member session for browser demos without Telegram/Clerk.
+ * Local-only: mint a member session for browser demos without Telegram.
  * Rejected off loopback and in production.
  */
 export async function POST(request: Request) {
   if (process.env.NODE_ENV === "production" || !isLoopbackHost(request)) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
-  }
-
-  let intent: "local-dev" | "clerk-bridge" = "local-dev";
-  try {
-    const body = (await request.json()) as { intent?: string };
-    if (body.intent === "clerk-bridge") intent = "clerk-bridge";
-  } catch {
-    /* empty body is fine */
-  }
-
-  if (intent === "clerk-bridge") {
-    const resolved = await resolveAuthenticatedMember();
-    if (!resolved || resolved.source !== "clerk" || !resolved.claims) {
-      return NextResponse.json(
-        { error: "Clerk session required to bridge" },
-        { status: 401 },
-      );
-    }
-    const token = await signMemberSessionToken(resolved.claims);
-    const response = NextResponse.json({
-      ok: true,
-      memberId: resolved.member.id,
-      authenticator: "clerk",
-    });
-    response.cookies.set(
-      MEMBER_SESSION_COOKIE,
-      token,
-      memberSessionCookieOptions(),
-    );
-    return response;
   }
 
   const member = await upsertMemberFromExternalAuth({

@@ -48,8 +48,8 @@ The first release focuses on trusted discovery and learning. It does not apply f
 22. As a member, I want to explain why I dismissed an opportunity, so that future ranking improves.
 23. As a member, I want notification controls for urgency, cadence, quiet hours, and channels, so that Gravy Scout helps without becoming noisy.
 24. As a member, I want a concise digest when meaningful evidence changes, so that I do not receive padded daily messages.
-25. As a member, I want to link Telegram from my signed-in web account, so that another person's Telegram account cannot be linked accidentally.
-26. As a member, I want Telegram linking to use a short-lived one-time token, so that usernames and guessable links are insufficient.
+25. As a new member, I want to start by texting Gravy Scout on Telegram, so that I do not need a web account first.
+26. As a member, I want web workspace login to use Telegram Login or a short-lived one-time token, so that usernames and guessable links are insufficient.
 27. As a member, I want messages sent on Telegram to appear in the web conversation, so that I can continue on either surface.
 28. As a member, I want messages sent on the web to appear in Telegram when appropriate, so that the conversation feels continuous.
 29. As a member, I want one consistent Gravy Scout memory across surfaces, so that I do not repeat my background and preferences.
@@ -72,7 +72,7 @@ The first release focuses on trusted discovery and learning. It does not apply f
 
 - The product is multi-member from the first production slice. No new feature may depend on process-global or filesystem-global member state.
 - Neon Postgres with Drizzle is the system of record. Schema changes use committed migrations; runtime `CREATE TABLE IF NOT EXISTS` is removed after migration.
-- Clerk provides end-member authentication. The internal member identifier is stable and provider-agnostic.
+- Telegram provides end-member authentication via a verified user ID. The internal member identifier is stable and provider-agnostic. Additional channels may bind later; they do not replace Telegram as the first authenticator.
 - Eve remains the agent runtime. Its native Telegram channel is retained; Chat SDK is not added because Eve implements its own channel runtime.
 - A product-level canonical conversation is stored independently of Eve's surface-specific sessions. Channel messages are bridged into that conversation.
 - Telegram is linked with an authenticated, short-lived, single-use deep-link token. Telegram usernames are display metadata only.
@@ -84,7 +84,7 @@ The first release focuses on trusted discovery and learning. It does not apply f
 - Research uses specialist Eve subagents with constrained tools and structured outputs.
 - The web app uses shadcn/ui primitives and organizes the signed-in experience around Today, Opportunities, Conversation, and Profile & connections.
 - The agent may draft outreach but external side effects require explicit human approval.
-- Production web access removes anonymous Eve HTTP authentication.
+- Production web access removes anonymous Eve HTTP authentication. Web `/app` requires a Telegram-minted member session.
 - Full private email bodies and documents have explicit retention policies. Stored evidence defaults to the minimum excerpt and metadata needed for traceability.
 
 ## Testing Decisions

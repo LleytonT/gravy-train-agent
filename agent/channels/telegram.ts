@@ -11,6 +11,8 @@ import {
   consumeTelegramDeepLink,
   findMemberByTelegramUserId,
   touchTelegramIdentityUsername,
+  upsertMemberFromTelegramLogin,
+  type MemberRecord,
 } from "../lib/identity.js";
 import {
   getMessagingDestination,
@@ -18,7 +20,7 @@ import {
 } from "../lib/messaging.js";
 
 /**
- * Telegram bot channel (primary push + chat surface alongside Web).
+ * Telegram bot channel — primary chat surface and identity proof.
  *
  * Env:
  *   TELEGRAM_BOT_TOKEN
@@ -27,9 +29,10 @@ import {
  *
  * Webhook: POST /eve/v1/telegram
  *
- * Linking uses a short-lived, single-use deep-link token minted by the
- * authenticated web member (GS-005). Username-only linking is rejected.
- * Inbound/outbound turns go through the canonical conversation bridge.
+ * A verified Telegram user ID creates or resolves the member on first
+ * private message. Username-only linking is not supported. Deep-link
+ * tokens remain for web Login Widget fallback and reconnect. Inbound and
+ * outbound turns go through the canonical conversation bridge.
  */
 
 const botUsername = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "");
@@ -52,6 +55,39 @@ function parseStartPayload(
     return { isStart: false, token: null };
   }
   return { isStart: true, token: match[2] ?? null };
+}
+
+function telegramDisplayName(from: {
+  firstName?: string;
+  lastName?: string;
+}): string | null {
+  const displayName = [from.firstName, from.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return displayName || null;
+}
+
+/**
+ * Telegram-first membership: the verified webhook user ID is enough.
+ * Usernames are display metadata only.
+ */
+async function ensureMemberFromTelegramUser(from: {
+  id: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+}): Promise<MemberRecord> {
+  const existing = await findMemberByTelegramUserId(from.id);
+  if (existing) {
+    await touchTelegramIdentityUsername(from.id, from.username);
+    return existing;
+  }
+  return upsertMemberFromTelegramLogin({
+    telegramUserId: from.id,
+    username: from.username,
+    displayName: telegramDisplayName(from),
+  });
 }
 
 async function persistChatDestination(input: {
@@ -108,24 +144,13 @@ export default telegramChannel({
     }
 
     const start = parseStartPayload(text, botUsername);
-    if (start.isStart) {
-      if (!start.token || start.token === "link") {
-        return replyAndDrop(
-          ctx,
-          "To link Telegram, open the one-time link from your signed-in Gravy Scout account on the web. Username-only linking is not supported.",
-        );
-      }
-
+    if (start.isStart && start.token && start.token !== "link") {
       try {
-        const displayName = [from.firstName, from.lastName]
-          .filter(Boolean)
-          .join(" ")
-          .trim();
         const { kind, identity } = await consumeTelegramDeepLink({
           token: start.token,
           telegramUserId: from.id,
           username: from.username,
-          displayName: displayName || null,
+          displayName: telegramDisplayName(from),
         });
         await persistChatDestination({
           memberId: identity.memberId,
@@ -169,19 +194,19 @@ export default telegramChannel({
         if (err instanceof ChannelLinkError) {
           const hints: Record<string, string> = {
             malformed:
-              "That link looks invalid. Generate a fresh Telegram link from the web app.",
+              "That link looks invalid. Open Gravy Scout on the web and generate a fresh Telegram link.",
             not_found:
-              "That link was not recognized. Generate a fresh Telegram link from the web app.",
+              "That link was not recognized. Open Gravy Scout on the web and generate a fresh Telegram link.",
             expired:
-              "That link has expired. Generate a fresh Telegram link from the web app.",
-            used: "That link was already used. Generate a fresh Telegram link from the web app.",
+              "That link has expired. Open Gravy Scout on the web and generate a fresh Telegram link.",
+            used: "That link was already used. Open Gravy Scout on the web and generate a fresh Telegram link.",
             conflict:
-              "This Telegram account is already linked to a different Gravy Scout member. Disconnect it there first, or sign in as that member.",
+              "This Telegram account is already linked to a different Gravy Scout member. Disconnect it there first, or continue as that member.",
           };
           return replyAndDrop(
             ctx,
             hints[err.code] ??
-              "Could not link Telegram. Generate a fresh link from the web app.",
+              "Could not complete that Telegram link. Generate a fresh one from the web app.",
           );
         }
         console.warn(
@@ -190,21 +215,26 @@ export default telegramChannel({
         );
         return replyAndDrop(
           ctx,
-          "Something went wrong while linking. Try a fresh link from the web app.",
+          "Something went wrong while linking. Try a fresh link from the web app, or just send a message here to continue.",
         );
       }
     }
 
-    const member = await findMemberByTelegramUserId(from.id);
-    if (!member) {
+    let member: MemberRecord;
+    try {
+      member = await ensureMemberFromTelegramUser(from);
+    } catch (err) {
+      console.warn(
+        "[telegram] member provision failed:",
+        err instanceof Error ? err.message : err,
+      );
       return replyAndDrop(
         ctx,
-        "This Telegram account is not linked yet. Sign in on the web, open Profile → Telegram, and use the one-time link. Usernames alone cannot link an account.",
+        "Could not start your Gravy Scout account from this Telegram user. Try again in a moment.",
       );
     }
 
     try {
-      await touchTelegramIdentityUsername(from.id, from.username);
       await persistChatDestination({
         memberId: member.id,
         chatId: String(message.chat.id),

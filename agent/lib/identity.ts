@@ -1,8 +1,8 @@
 /**
  * Identity module — resolves verified external principals to internal members.
  *
- * Only this module should know provider subject IDs (Clerk `user_*`, Telegram
- * user IDs, local-dev). Feature modules and Eve tools accept only the internal
+ * Only this module should know provider subject IDs (Telegram user IDs,
+ * local-dev). Feature modules and Eve tools accept only the internal
  * `memberId`. Channel-link tokens are created and consumed here.
  */
 
@@ -238,7 +238,7 @@ export function requireMemberCaller(ctx: SessionContext): {
 
   if (caller?.principalType !== "user" || !memberId) {
     throw new Error(
-      "An authenticated member is required. Sign in on the web app, or use local Eve development which maps to the local-dev member.",
+      "An authenticated member is required. Message Gravy Scout on Telegram, verify with Telegram Login on the web, or use local Eve development which maps to the local-dev member.",
     );
   }
 

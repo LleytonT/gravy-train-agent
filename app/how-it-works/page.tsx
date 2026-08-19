@@ -22,7 +22,7 @@ const outcomes = [
   },
   {
     title: "Ping only when it matters",
-    body: "WhatsApp digests fire on real thresholds, not every weak signal.",
+    body: "Telegram digests fire on real thresholds, not every weak signal.",
   },
 ];
 

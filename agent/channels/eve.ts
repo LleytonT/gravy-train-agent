@@ -7,7 +7,6 @@ import {
   type AuthFn,
 } from "eve/channels/auth";
 
-import { clerkMemberAuth } from "../lib/clerk-auth.js";
 import {
   FIXTURE_MEMBER_ID,
   isEvalFixture,
@@ -36,7 +35,7 @@ function hostLooksLoopback(request: Request): boolean {
 
 /**
  * Local Eve TUI / loopback access maps to a stable internal member so tools
- * that require memberId keep working without Clerk during development.
+ * that require memberId keep working without Telegram during development.
  * Never use localDev alone in production.
  */
 function localDevMemberAuth(): AuthFn<Request> {
@@ -95,10 +94,8 @@ function localDevMemberAuth(): AuthFn<Request> {
 
 export default eveChannel({
   auth: [
-    // Telegram Login (primary web) and other minted member-session JWTs.
+    // Telegram Login / Telegram-minted member-session JWTs for the web app.
     memberSessionAuth(),
-    // Optional Clerk sessions for members who prefer email sign-in.
-    clerkMemberAuth(),
     // Vercel CLI / deployment-to-deployment callers.
     vercelOidc(),
     // Loopback Eve TUI and local REPL — explicit non-production fallback.

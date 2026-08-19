@@ -5,11 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import type { OnboardingMatch } from "@/agent/lib/onboarding-types";
-import {
-  ClerkEnabled,
-  OptionalSignInButton,
-  OptionalSignedIn,
-} from "@/components/auth/optional-clerk";
 import { TelegramLoginButton } from "@/components/auth/telegram-login-button";
 import {
   INTEREST_OPTIONS,
@@ -378,9 +373,9 @@ export function ProgressiveOnboarding() {
               Verify with Telegram
             </h2>
             <p className="text-sm text-muted-foreground">
-              Telegram proves you are a real person and links digests to the same
-              identity. Clerk email sign-in stays available as a secondary option
-              only if you prefer it.
+              Telegram proves you are a real person and is how Gravy Scout
+              texts you. The same Telegram user ID is your member identity —
+              you can also just message the bot to start.
             </p>
             <TelegramLoginButton
               onAuthenticated={() => {
@@ -388,35 +383,6 @@ export function ProgressiveOnboarding() {
               }}
             />
           </div>
-
-          <ClerkEnabled>
-            <div className="space-y-2 border-t border-border pt-4">
-              <p className="text-sm text-muted-foreground">
-                Prefer email instead? Optional — not required to start.
-              </p>
-              <OptionalSignInButton>
-                <Button variant="ghost" size="sm">
-                  Continue with email (Clerk)
-                </Button>
-              </OptionalSignInButton>
-              <OptionalSignedIn>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => {
-                    void fetch("/api/auth/session", {
-                      method: "POST",
-                      headers: { "content-type": "application/json" },
-                      credentials: "include",
-                      body: JSON.stringify({ intent: "clerk-bridge" }),
-                    }).then(() => persistAfterAuth());
-                  }}
-                >
-                  Continue with current email session
-                </Button>
-              </OptionalSignedIn>
-            </div>
-          </ClerkEnabled>
 
           <div className="flex items-start gap-2 text-sm text-muted-foreground">
             <Checkbox id="alerts" defaultChecked disabled />

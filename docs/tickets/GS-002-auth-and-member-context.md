@@ -2,7 +2,7 @@
 
 Blocked by: GS-001.
 
-Status: implemented on branch (Clerk Marketplace + identity module + Eve auth walk).
+Status: implemented, then Clerk removed (ADR 0005). Telegram user ID is the end-member authenticator; the identity module still maps verified principals to internal `memberId`.
 
 ## Goal
 
