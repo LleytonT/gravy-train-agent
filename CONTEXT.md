@@ -4,7 +4,7 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 
 ## People and identity
 
-- **Member** — a person with a Gravy Scout account. A member talks to Gravy Scout on Telegram and may use the web app only to get started. A member may connect several sources.
+- **Member** — a person with a Gravy Scout account. A member talks to Gravy Scout on Telegram. The web app is a non-agentic dashboard for the same career profile, opportunities, and related records, plus a public get-started onramp; it is not a talk surface. A member may connect several sources.
 - **Career profile** — the structured, member-owned facts Gravy Scout uses to personalize work: experience, skills, constraints, ambitions, preferences, and explicit feedback.
 - **Preference** — a durable member choice that affects discovery or ranking. Preferences have provenance and may be explicit or inferred; inferred preferences must never silently override explicit ones.
 - **Channel identity** — an external identity that belongs to a member, such as a Telegram user ID. It is established by the channel itself. A username is display metadata, not identity.
@@ -18,7 +18,7 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 - **Candidate role** — an advertised, rumored, or inferred role that may fit one or more members.
 - **Opportunity** — a member-specific hypothesis connecting a candidate role or company event to that member, with a score, rationale, evidence, confidence, and next action.
 - **Discovery run** — one idempotent execution that ingests source items, derives signals, refreshes dossiers, creates or updates opportunities, and decides whether to notify.
-- **Digest** — a ranked summary of new or materially changed opportunities delivered to a member.
+- **Digest** — a ranked summary of new or materially changed opportunities delivered to a member on Telegram.
 
 ## Conversation
 
