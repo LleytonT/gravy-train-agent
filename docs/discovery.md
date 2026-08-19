@@ -43,11 +43,17 @@ Default: 50 source items, 5 web searches, 20 model calls per run.
 
 Failed runs leave source items unprocessed so a reclaim/retry can finish opportunities and digests.
 
+## Digests (GS-014)
+
+A material **discovery run** sends a concise **digest** on Telegram and appends the same body to the canonical **conversation**. A no-op run records a skipped delivery and does not message the member. Quiet hours and a revoked **channel identity** suppress proactive send. Retrying a completed run does not double-send.
+
+Deterministic code decides whether a digest is due; the model does not.
+
 ## Verification
 
 ```bash
 pnpm db:migrate
 pnpm test:scoring      # scoring.ts@v1 regression
-pnpm test:discovery    # claim/retry, constraints, evidence, noop digests
+pnpm test:discovery    # claim/retry, constraints, evidence, telegram/noop digests
 pnpm typecheck
 ```

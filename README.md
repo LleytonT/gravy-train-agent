@@ -134,7 +134,7 @@ pnpm dev:no-ui
 curl -X POST http://127.0.0.1:3000/eve/v1/dev/schedules/nightly_scout
 ```
 
-Runs claim idempotently, process source items, derive cited signals, refresh dossiers, score member opportunities (`scoring.ts@v1`), and send a digest only on material change. See [`docs/discovery.md`](./docs/discovery.md).
+Runs claim idempotently, process source items, derive cited signals, refresh dossiers, score member opportunities (`scoring.ts@v1`), and send a Telegram digest only on material change (quiet hours and revoked identity stay silent). See [`docs/discovery.md`](./docs/discovery.md).
 
 ## Telegram (primary messaging + identity)
 
@@ -158,7 +158,7 @@ Runs claim idempotently, process source items, derive cited signals, refresh dos
      -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
    ```
 5. Message the bot (creates the member) or open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
-6. Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
+6. Inbound Telegram messages and web chat share the canonical conversation. Nightly digests send on Telegram when the member is linked and consented, and are recorded on that conversation.
 
 If the widget renders **Bot domain invalid**, the deep-link button still signs members in. Fix the widget by re-running `/setdomain` for `gravy.sh`.
 
