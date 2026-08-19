@@ -144,21 +144,30 @@ Runs claim idempotently, process source items, derive cited signals, refresh dos
    /setdomain → @YourBot → gravy.sh
    ```
    Use the hostname only — no `https://`, path, or trailing slash. Also add `https://gravy.sh` under BotFather → Login Widget → Allowed URLs if you use the newer Web Login UI.
-3. Set env (local `.env` + Vercel):
+3. Confirm the token in this shell before curling Telegram. A 404 from `getWebhookInfo` means the **token is missing or not a BotFather token**, not that the webhook is unregistered:
+
+   ```bash
+   # Empty $TELEGRAM_BOT_TOKEN hits https://api.telegram.org/bot/getWebhookInfo → 404
+   echo "token set? ${TELEGRAM_BOT_TOKEN:+yes}"
+   pnpm check:telegram   # reads .env / .env.local; never prints the secret
+   ```
+
+   A well-formed but wrong token returns **401 Unauthorized**. `cp .env.example .env` leaves `TELEGRAM_BOT_TOKEN=` empty until you paste the `123456:AAH…` value from BotFather `/token`. Values in Vercel or `.env` are **not** visible to curl until you `export` them or use `pnpm check:telegram`.
+4. Set env (local `.env` + Vercel):
    ```bash
    vercel env add TELEGRAM_BOT_TOKEN production
    vercel env add TELEGRAM_BOT_USERNAME production
    vercel env add TELEGRAM_WEBHOOK_SECRET_TOKEN production   # openssl rand -hex 32
    vercel env add TELEGRAM_LOGIN_DOMAIN production           # gravy.sh
    ```
-4. Deploy, then register the webhook (Eve does **not** call `setWebhook` for you):
+5. Deploy, then register the webhook (Eve does **not** call `setWebhook` for you):
    ```bash
    curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
      -H "Content-Type: application/json" \
      -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
    ```
-5. Open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
-6. Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
+6. Open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
+7. Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
 
 If the widget renders **Bot domain invalid**, the deep-link button still signs members in. Fix the widget by re-running `/setdomain` for `gravy.sh`.
 
@@ -203,6 +212,8 @@ Apply migrations against `DATABASE_URL_UNPOOLED` before serving member traffic. 
 | `pnpm test:database` | Two-member Postgres isolation |
 | `pnpm test:auth` | Member-session / Clerk / Eve auth wiring + identity upserts |
 | `pnpm test:telegram-login` | Telegram Login Widget HMAC + session mint |
+| `pnpm test:telegram-bot-token` | Diagnose empty-token 404 vs 401 without a real secret |
+| `pnpm check:telegram` | Live getMe + getWebhookInfo using `.env` (never prints the token) |
 | `pnpm test:career-profile` | Structured profile precedence + résumé ingest |
 | `pnpm test:conversation` | Canonical conversation bridge + idempotency |
 | `pnpm test:telegram-link` | Link tokens, revocation, quiet hours |

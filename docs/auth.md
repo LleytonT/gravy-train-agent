@@ -50,5 +50,7 @@ Local Eve TUI / loopback still uses `localDevMemberAuth()` → `external_auth_id
 ```bash
 pnpm test:auth
 pnpm test:telegram-login
+pnpm test:telegram-bot-token
+pnpm check:telegram   # live; needs TELEGRAM_BOT_TOKEN in .env
 pnpm typecheck
 ```
