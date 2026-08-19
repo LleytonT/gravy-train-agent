@@ -20,6 +20,8 @@
     "test:database": "tsx scripts/smoke-database.ts",
     "test:auth": "tsx scripts/smoke-auth.ts",
     "test:telegram-login": "tsx scripts/smoke-telegram-login.ts",
+    "test:telegram-bot-token": "tsx scripts/smoke-telegram-bot-token.ts",
+    "check:telegram": "tsx scripts/check-telegram.ts",
     "test:career-profile": "tsx scripts/smoke-career-profile.ts",
     "test:conversation": "tsx scripts/smoke-conversation.ts",
     "test:telegram-link": "tsx scripts/smoke-telegram-link.ts",

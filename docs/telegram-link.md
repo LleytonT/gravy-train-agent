@@ -24,6 +24,23 @@ Gravy Scout links Telegram with a short-lived, single-use deep-link token minted
 
 Only `agent/lib/identity.ts` creates/consumes link tokens and reads/writes `channel_identities`. Callers pass the internal `memberId`.
 
+## Bot token and webhook
+
+Eve mounts `POST /eve/v1/telegram` and does **not** call `setWebhook`. Telegram's Bot API 404 is almost never "webhook missing":
+
+| Response | Meaning |
+| --- | --- |
+| `404 Not Found` | `$TELEGRAM_BOT_TOKEN` is empty or not a `botId:secret` token. `curl …/bot$TOKEN/getWebhookInfo` became `…/bot/getWebhookInfo`. |
+| `401 Unauthorized` | Token shape is valid; Telegram rejected it (typo, revoked, wrong bot). |
+| `ok: true` with empty `url` | Token works; webhook is not registered yet — run `setWebhook` against `https://<deploy>/eve/v1/telegram`. |
+
+```bash
+pnpm test:telegram-bot-token   # public 404 reproduction, no secret
+pnpm check:telegram            # reads .env.local / .env
+```
+
+`pnpm check:telegram` never prints the token. Values in Vercel are not in your shell until you export them.
+
 ## Verification
 
 ```bash
@@ -31,5 +48,6 @@ pnpm db:migrate
 pnpm test:telegram-link
 pnpm test:conversation
 pnpm test:auth
+pnpm test:telegram-bot-token
 pnpm typecheck
 ```
