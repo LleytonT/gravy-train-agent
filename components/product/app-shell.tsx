@@ -8,6 +8,7 @@ import {
   fetchSessionStatus,
   signOutMemberSession,
 } from "@/components/auth/member-session";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,39 @@ const nav = [
     match: (path: string) => path.startsWith("/app/profile"),
   },
 ] as const;
+
+function TelegramHomeBanner() {
+  const [href, setHref] = useState("https://t.me/GravyScoutBot");
+  const [username, setUsername] = useState("GravyScoutBot");
+
+  useEffect(() => {
+    void fetch("/api/messaging-config")
+      .then((res) => res.json())
+      .then((data: { botUsername?: string | null; botInfoLink?: string | null }) => {
+        if (data.botUsername) setUsername(data.botUsername);
+        if (data.botInfoLink) setHref(data.botInfoLink);
+        else if (data.botUsername) setHref(`https://t.me/${data.botUsername}`);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  return (
+    <Alert className="mb-6">
+      <AlertTitle>Gravy Scout lives in Telegram</AlertTitle>
+      <AlertDescription>
+        Digests, intake, and commands run in the bot.{" "}
+        <a
+          className="font-medium text-foreground underline underline-offset-2"
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open @{username}
+        </a>
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -92,6 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 md:px-6 md:py-8">
+        <TelegramHomeBanner />
         {children}
       </main>
     </div>

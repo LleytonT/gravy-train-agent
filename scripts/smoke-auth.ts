@@ -55,6 +55,10 @@ async function main() {
     proxy.includes("/get-started"),
     "proxy.ts must keep progressive onboarding public",
   );
+  assert(
+    proxy.includes("/eve/v1/telegram"),
+    "proxy.ts must allow the Telegram webhook (Eve verifies the secret token)",
+  );
 
   await ensureSchema();
   const db = getDb();

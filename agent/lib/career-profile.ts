@@ -14,7 +14,7 @@ import {
   preferences,
   type PreferenceProvenance,
 } from "./db/schema.js";
-import type { MessagingDestination } from "./messaging.js";
+import type { DigestCadence, MessagingDestination } from "./messaging.js";
 import type { UserPreferences } from "./profile.js";
 import {
   detectRoleFamily,
@@ -47,6 +47,30 @@ export type ResumeIngest = {
   source: "paste" | "upload";
 };
 
+export const telegramIntakeSteps = [
+  "identity",
+  "target_roles",
+  "company_thesis",
+  "regions",
+  "resume",
+  "cadence",
+  "complete",
+] as const;
+export type TelegramIntakeStep = (typeof telegramIntakeSteps)[number];
+
+export type TelegramIntakeRecord = {
+  status: "in_progress" | "complete";
+  currentStep: TelegramIntakeStep;
+  skippedResume?: boolean;
+  awaitingUpload?: "connections_csv" | "resume" | null;
+};
+
+export type ConnectionsCsvIngest = {
+  fileName: string | null;
+  storedAt: string;
+  text: string;
+};
+
 export type CareerProfileDocument = {
   roleFamily?: RoleFamilyId | string;
   geographyHints?: string[];
@@ -60,6 +84,9 @@ export type CareerProfileDocument = {
   messaging?: MessagingDestination;
   resume?: ResumeIngest | null;
   notes?: string | null;
+  companyThesis?: string | null;
+  intake?: TelegramIntakeRecord | null;
+  connectionsCsv?: ConnectionsCsvIngest | null;
 };
 
 export type PreferenceRecord = {
@@ -106,6 +133,9 @@ export type ExplicitProfilePatch = {
   constraints?: ProfileConstraints;
   notes?: string | null;
   messaging?: Partial<MessagingDestination>;
+  companyThesis?: string | null;
+  intake?: TelegramIntakeRecord | null;
+  connectionsCsv?: ConnectionsCsvIngest | null;
 };
 
 const SCORING_PREF_KEYS = [
@@ -127,6 +157,8 @@ function emptyMessaging(): MessagingDestination {
     consentUpdates: false,
     onboardingComplete: false,
     quietHours: { start: null, end: null, timezone: null },
+    digestPaused: false,
+    digestCadence: null,
   };
 }
 
@@ -260,6 +292,9 @@ export function toModelContextMarkdown(
     `- Target titles: ${(goals.targetTitles ?? []).join(", ")}`,
     `- Target companies: ${(goals.targetCompanies ?? []).join(", ")}`,
     `- Ambitions: ${(goals.ambitions ?? []).join(", ")}`,
+    document.companyThesis
+      ? `- Company thesis: ${document.companyThesis}`
+      : null,
     "",
     "## Constraints",
     `- Locations: ${(constraints.locations ?? []).join(", ")}`,
@@ -287,7 +322,12 @@ export function toModelContextMarkdown(
     `- telegramUsername: ${messaging.telegramUsername ? `@${messaging.telegramUsername}` : ""}`,
     `- consentUpdates: ${messaging.consentUpdates}`,
     `- onboardingComplete: ${messaging.onboardingComplete}`,
+    `- digestPaused: ${messaging.digestPaused ? "true" : "false"}`,
+    `- digestCadence: ${messaging.digestCadence ?? ""}`,
     `- quietHours: ${(messaging.quietHours?.start ?? "")}–${(messaging.quietHours?.end ?? "")} ${messaging.quietHours?.timezone ?? ""}`.trimEnd(),
+    document.intake
+      ? `- telegramIntake: ${document.intake.status}/${document.intake.currentStep}`
+      : null,
     "",
     document.resume?.text
       ? `## Résumé excerpt\n${document.resume.text.slice(0, 4000)}`
@@ -415,6 +455,13 @@ export async function applyExplicitProfileChanges(
         }
       : {}),
     ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    ...(patch.companyThesis !== undefined
+      ? { companyThesis: patch.companyThesis }
+      : {}),
+    ...(patch.intake !== undefined ? { intake: patch.intake } : {}),
+    ...(patch.connectionsCsv !== undefined
+      ? { connectionsCsv: patch.connectionsCsv }
+      : {}),
     ...(patch.messaging !== undefined
       ? {
           messaging: {
@@ -697,6 +744,8 @@ export async function saveMessagingForMember(
       end?: string | null;
       timezone?: string | null;
     } | null;
+    digestPaused?: boolean;
+    digestCadence?: DigestCadence | null;
   },
 ): Promise<MessagingDestination> {
   const snapshot = await getMemberContextSnapshot(memberId);
@@ -747,6 +796,14 @@ export async function saveMessagingForMember(
       input.onboardingComplete !== undefined
         ? input.onboardingComplete
         : current.onboardingComplete,
+    digestPaused:
+      input.digestPaused !== undefined
+        ? input.digestPaused
+        : Boolean(current.digestPaused),
+    digestCadence:
+      input.digestCadence !== undefined
+        ? input.digestCadence
+        : (current.digestCadence ?? null),
     quietHours: nextQuiet,
   };
 

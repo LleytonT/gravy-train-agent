@@ -9,6 +9,7 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 - **Preference** — a durable member choice that affects discovery or ranking. Preferences have provenance and may be explicit or inferred; inferred preferences must never silently override explicit ones.
 - **Channel identity** — an external identity linked to a member, such as a Telegram user ID. A username is display metadata, not identity.
 - **Connection** — revocable authorization for Gravy Scout to read a member-controlled source such as Gmail. A connection is not a channel identity.
+- **Intake** — the first Telegram conversation that collects career-profile facts (identity, target roles, company thesis, regions, résumé, digest cadence) before digests start. Distinct from the public web get-started preview.
 
 ## Opportunity intelligence
 

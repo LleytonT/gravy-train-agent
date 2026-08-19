@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
@@ -26,15 +26,14 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-type Step = "snapshot" | "goals" | "matches" | "verify";
+type Step = "snapshot" | "goals" | "matches" | "verify" | "done";
 
 const steps: Step[] = ["snapshot", "goals", "matches", "verify"];
 
 export function ProgressiveOnboarding() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const forceVerify = searchParams.get("verify") === "1";
-  const nextPath = searchParams.get("next") || "/app";
+  const nextPath = searchParams.get("next");
 
   const [step, setStep] = useState<Step>(forceVerify ? "verify" : "snapshot");
   const [name, setName] = useState("");
@@ -47,6 +46,8 @@ export function ProgressiveOnboarding() {
   const [matches, setMatches] = useState<OnboardingMatch[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [botInfoLink, setBotInfoLink] = useState<string | null>(null);
   useEffect(() => {
     const existing = loadOnboardingState();
     if (existing.identity) {
@@ -57,15 +58,22 @@ export function ProgressiveOnboarding() {
     }
     if (existing.matches?.length) setMatches(existing.matches);
     if (forceVerify) setStep("verify");
+    void fetch("/api/messaging-config")
+      .then((res) => res.json())
+      .then((data: { botUsername?: string | null; botInfoLink?: string | null }) => {
+        setBotUsername(data.botUsername ?? null);
+        setBotInfoLink(data.botInfoLink ?? null);
+      })
+      .catch(() => undefined);
     void fetch("/api/auth/session", { credentials: "include" })
       .then((res) => res.json())
       .then((data: { authenticated?: boolean }) => {
         if (data.authenticated && forceVerify) {
-          router.replace(nextPath);
+          setStep("done");
         }
       })
       .catch(() => undefined);
-  }, [forceVerify, nextPath, router]);
+  }, [forceVerify]);
 
   const progress = useMemo(() => {
     const index = steps.indexOf(step);
@@ -178,7 +186,7 @@ export function ProgressiveOnboarding() {
         matches: data.matches ?? matches,
         kickoffMessage: data.kickoffMessage,
       });
-      router.push(nextPath.startsWith("/app") ? nextPath : "/app");
+      setStep("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save profile");
     } finally {
@@ -193,12 +201,16 @@ export function ProgressiveOnboarding() {
           Get started
         </Badge>
         <h1 className="font-display text-4xl font-semibold tracking-tight md:text-5xl">
-          {step === "verify"
+          {step === "done"
+            ? "You're verified — Gravy Scout lives in Telegram"
+            : step === "verify"
             ? "Verify to keep your scout"
             : "Tell Gravy Scout who you are"}
         </h1>
         <p className="text-muted-foreground">
-          {step === "verify"
+          {step === "done"
+            ? "Open the bot to finish intake and get digests. The web workspace is optional."
+            : step === "verify"
             ? "Verification happens only when you are ready to use the product. Telegram is the default — no account form before that."
             : "No login yet. Sketch your career snapshot, see first matches, then verify with Telegram when you want them saved."}
         </p>
@@ -365,7 +377,7 @@ export function ProgressiveOnboarding() {
               Back
             </Button>
             <Button size="lg" onClick={() => setStep("verify")}>
-              Save &amp; enter workspace
+              Verify with Telegram
             </Button>
           </div>
         </section>
@@ -426,6 +438,41 @@ export function ProgressiveOnboarding() {
             </Label>
           </div>
 
+          <Button variant="outline" asChild>
+            <Link href="/">Back to product overview</Link>
+          </Button>
+        </section>
+      ) : null}
+
+      {step === "done" ? (
+        <section className="animate-rise space-y-5">
+          <div className="space-y-3 rounded-xl border border-border/80 bg-card/70 p-5">
+            <h2 className="font-display text-xl font-semibold">
+              Open Telegram
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Gravy Scout lives in Telegram. Send /start to @
+              {botUsername ?? "GravyScoutBot"} to finish intake and get
+              opportunity cards.
+            </p>
+            <Button size="lg" asChild>
+              <a
+                href={
+                  botInfoLink ??
+                  (botUsername ? `https://t.me/${botUsername}` : "https://t.me/GravyScoutBot")
+                }
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open @{botUsername ?? "GravyScoutBot"}
+              </a>
+            </Button>
+          </div>
+          {nextPath?.startsWith("/app") ? (
+            <Button variant="ghost" asChild>
+              <Link href={nextPath}>Optional: web workspace</Link>
+            </Button>
+          ) : null}
           <Button variant="outline" asChild>
             <Link href="/">Back to product overview</Link>
           </Button>
