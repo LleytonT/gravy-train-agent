@@ -8,7 +8,8 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 - **Career profile** — the structured, member-owned facts Gravy Scout uses to personalize work: experience, skills, constraints, ambitions, preferences, and explicit feedback.
 - **Preference** — a durable member choice that affects discovery or ranking. Preferences have provenance and may be explicit or inferred; inferred preferences must never silently override explicit ones.
 - **Channel identity** — an external identity that belongs to a member, such as a Telegram user ID. It is established by the channel itself. A username is display metadata, not identity.
-- **Connection** — revocable authorization for Gravy Scout to read a member-controlled source such as Gmail. A connection is not a channel identity.
+- **Connection** — revocable authorization for Gravy Scout to read a member-controlled source. The first connection is the **inbound address**. A connection is not a channel identity.
+- **Inbound address** — a unique email address Gravy Scout gives a member on Telegram so job-board alerts can be subscribed or forwarded.
 
 ## Opportunity intelligence
 
@@ -32,7 +33,7 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 
 - **Disposition** — a member's explicit response to an opportunity: `saved`, `dismissed`, `pursuing`, or `not_interested`. Applied or in-progress jobs are **opportunities** with `pursuing`; there is no separate application object.
 - **Feedback event** — an append-only record of a correction, preference change, or opportunity disposition used to improve future ranking.
-- **Proposed action** — an external side effect drafted by Gravy Scout and executed only after the member approves it, such as sending outreach or applying. Approval may be one-shot or standing.
+- **Proposed action** — an external side effect drafted by Gravy Scout and executed only after the member approves that specific action in Telegram, such as sending outreach or applying.
 
 ## Terms to avoid
 
@@ -44,3 +45,4 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 - **Web chat** or treating the web app as a place to talk to Gravy Scout; the talk **surface** is Telegram.
 - **Telegram verification** when the member is proving who they are by messaging the bot; that is **channel identity**. **Telegram Login** is only a later dashboard lock, never a prerequisite to talk.
 - **Application** as a domain object; use an **opportunity** with **disposition** `pursuing`.
+- **Standing approval** or “always apply to roles like this”; every **proposed action** needs a per-event yes in Telegram.
