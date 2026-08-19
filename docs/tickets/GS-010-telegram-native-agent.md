@@ -2,7 +2,7 @@
 
 Blocked by: none (GS-001–GS-009 landed).
 
-Status: ready-for-agent
+Status: decomposed into GS-011–GS-015. Do not implement this ticket as one slice.
 
 Spec: `docs/specs/telegram-native-agent.md`
 
@@ -27,4 +27,4 @@ The identity module upserts a **member** from a verified Telegram user ID on the
 
 Dashboard UI, web transcript, standing approvals, application object, WhatsApp, mailbox OAuth, new source adapters.
 
-Decompose further with `/to-tickets` before splitting across parallel agents.
+Children: [GS-011](./GS-011-cold-start-telegram-member.md), [GS-012](./GS-012-get-started-opens-the-bot.md), [GS-013](./GS-013-inbound-address-in-telegram.md), [GS-014](./GS-014-digests-arrive-in-telegram.md), [GS-015](./GS-015-proposed-action-yes-in-telegram.md).

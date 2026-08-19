@@ -13,7 +13,12 @@ These are tracer-bullet tickets for independent Cursor agents. Complete them in 
 | [GS-007](./GS-007-discovery-pipeline.md) | Evidence-backed discovery orchestration | GS-003, GS-006 |
 | [GS-008](./GS-008-product-ui.md) | Shadcn onboarding and workspace (Telegram-first deferred auth) | GS-003, GS-004, GS-007 |
 | [GS-009](./GS-009-eve-evals.md) | Agent behavior regression suite | GS-003, GS-004, GS-007 |
-| [GS-010](./GS-010-telegram-native-agent.md) | Telegram-native agent (Poke UX) | GS-001–GS-009 landed |
+| [GS-010](./GS-010-telegram-native-agent.md) | Telegram-native spec (parent) | GS-001–GS-009 landed |
+| [GS-011](./GS-011-cold-start-telegram-member.md) | Cold-start Telegram **member** | — (audit `main`; do not rebuild) |
+| [GS-012](./GS-012-get-started-opens-the-bot.md) | Get-started opens the bot; no web chat | GS-011 |
+| [GS-013](./GS-013-inbound-address-in-telegram.md) | **Inbound address** issued in Telegram | GS-011 |
+| [GS-014](./GS-014-digests-arrive-in-telegram.md) | **Digests** arrive in Telegram | — |
+| [GS-015](./GS-015-proposed-action-yes-in-telegram.md) | **Proposed action** needs a per-event yes | GS-011 |
 
 ## Shared rules
 
