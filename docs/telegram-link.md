@@ -23,6 +23,7 @@ A private Telegram message with no prior `channel_identities` row calls `upsertM
 - `DELETE /api/telegram/link` sets `revoked_at` and clears chat id — proactive delivery stops immediately.
 - Quiet hours live on the messaging destination and skip proactive sends.
 - Delivery attempts write `digest_deliveries` with a unique idempotency key.
+- A material discovery run sends the digest on Telegram and records it on the canonical conversation. Quiet hours, missing consent, and a revoked channel identity skip the send.
 
 ## Module seam
 

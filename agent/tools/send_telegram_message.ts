@@ -2,15 +2,11 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { recordDelivery } from "../lib/delivery.js";
+import { requireMemberCaller } from "../lib/identity.js";
 import {
-  getTelegramIdentityForMember,
-  requireMemberCaller,
-} from "../lib/identity.js";
-import {
-  getMessagingDestination,
-  isTelegramConfigured,
-  isWithinQuietHours,
-} from "../lib/messaging.js";
+  sendProactiveTelegramMessage,
+  TELEGRAM_SKIP_MESSAGES,
+} from "../lib/telegram-send.js";
 
 /**
  * Proactive Telegram delivery via Bot API sendMessage.
@@ -37,142 +33,59 @@ export default defineTool({
   }),
   async execute({ body, chatId, idempotencyKey }, ctx) {
     const { memberId } = requireMemberCaller(ctx);
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const dest = await getMessagingDestination(memberId);
-    const identity = await getTelegramIdentityForMember(memberId);
-    const recipient = chatId ?? dest.telegramChatId;
     const deliveryKey =
       idempotencyKey ??
       `telegram:proactive:${memberId}:${createHashSlice(body)}`;
 
-    if (!token || !isTelegramConfigured()) {
-      await recordDelivery({
-        memberId,
-        channel: "telegram",
-        idempotencyKey: deliveryKey,
-        status: "skipped",
-        error: "Telegram bot not configured",
-      });
-      return {
-        sent: false,
-        skipped: true,
-        reason:
-          "Telegram bot not configured (need TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME). Return digest as final message instead.",
-      };
-    }
-
-    if (!identity) {
-      await recordDelivery({
-        memberId,
-        channel: "telegram",
-        idempotencyKey: deliveryKey,
-        status: "skipped",
-        error: "No active Telegram channel identity",
-      });
-      return {
-        sent: false,
-        skipped: true,
-        reason:
-          "No active Telegram link. Ask the member to open the one-time deep link from the signed-in web app and tap Start.",
-      };
-    }
-
-    if (!recipient) {
-      await recordDelivery({
-        memberId,
-        channel: "telegram",
-        idempotencyKey: deliveryKey,
-        status: "skipped",
-        error: "No telegramChatId",
-      });
-      return {
-        sent: false,
-        skipped: true,
-        reason:
-          "Telegram is linked but chat id is missing. Ask the member to send any message to the bot once.",
-      };
-    }
-
-    if (!dest.consentUpdates && !chatId) {
-      await recordDelivery({
-        memberId,
-        channel: "telegram",
-        idempotencyKey: deliveryKey,
-        status: "skipped",
-        error: "consentUpdates=false",
-      });
-      return {
-        sent: false,
-        skipped: true,
-        reason:
-          "Member has not consented to Telegram updates (consentUpdates=false). Confirm consent before sending digests.",
-      };
-    }
-
-    if (!chatId && isWithinQuietHours(dest.quietHours)) {
-      await recordDelivery({
-        memberId,
-        channel: "telegram",
-        idempotencyKey: deliveryKey,
-        status: "skipped",
-        error: "quiet hours",
-      });
-      return {
-        sent: false,
-        skipped: true,
-        reason:
-          "Member is in quiet hours. Defer proactive Telegram delivery until the quiet window ends.",
-      };
-    }
-
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: recipient,
-        text: body,
-        disable_web_page_preview: true,
-      }),
+    const result = await sendProactiveTelegramMessage({
+      memberId,
+      body,
+      chatId,
     });
 
-    const json = (await res.json().catch(() => ({}))) as {
-      ok?: boolean;
-      result?: { message_id?: number };
-      description?: string;
-    };
+    if (result.status === "skipped") {
+      await recordDelivery({
+        memberId,
+        channel: "telegram",
+        idempotencyKey: deliveryKey,
+        status: "skipped",
+        error: result.reason,
+      });
+      return {
+        sent: false,
+        skipped: true,
+        reason: TELEGRAM_SKIP_MESSAGES[result.reason],
+      };
+    }
 
-    if (!res.ok || !json.ok) {
-      const error = json.description ?? `HTTP ${res.status}`;
+    if (result.status === "failed") {
       await recordDelivery({
         memberId,
         channel: "telegram",
         idempotencyKey: deliveryKey,
         status: "failed",
-        error,
+        error: result.error,
       });
       return {
         sent: false,
-        error,
+        error: result.error,
       };
     }
 
-    const providerMessageId =
-      json.result?.message_id !== undefined
-        ? String(json.result.message_id)
-        : null;
     await recordDelivery({
       memberId,
       channel: "telegram",
       idempotencyKey: deliveryKey,
       status: "sent",
-      providerMessageId,
+      providerMessageId: result.providerMessageId,
     });
 
     return {
       sent: true,
-      messageId: json.result?.message_id,
-      chatId: recipient,
+      messageId: result.providerMessageId
+        ? Number(result.providerMessageId)
+        : undefined,
+      chatId: result.chatId,
       deliveryKey,
     };
   },

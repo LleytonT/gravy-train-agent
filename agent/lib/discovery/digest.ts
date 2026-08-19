@@ -2,11 +2,18 @@ import { eq } from "drizzle-orm";
 
 import {
   appendMessage,
-  createConversation,
-  listConversations,
+  getOrCreateActiveConversation,
 } from "../conversation.js";
 import { getDb } from "../db/client.js";
-import { digestDeliveries, opportunities } from "../db/schema.js";
+import {
+  digestDeliveries,
+  opportunities,
+  type DeliveryStatus,
+} from "../db/schema.js";
+import {
+  sendProactiveTelegramMessage,
+  type TelegramBotTransport,
+} from "../telegram-send.js";
 import type { OpportunityUpsertResult } from "./opportunities.js";
 
 export type DigestResult = {
@@ -27,9 +34,83 @@ function formatDigest(
   return `Gravy Scout digest — ${rows.length} material update${rows.length === 1 ? "" : "s"}:\n\n${lines.join("\n\n")}`;
 }
 
+async function saveDelivery(input: {
+  id?: string;
+  memberId: string;
+  discoveryRunId: string;
+  conversationId?: string | null;
+  channel: "telegram" | "system";
+  idempotencyKey: string;
+  status: DeliveryStatus;
+  error?: string | null;
+  providerMessageId?: string | null;
+}): Promise<string | undefined> {
+  const db = getDb();
+  const now = new Date();
+  const deliveredAt = input.status === "sent" ? now : null;
+
+  if (input.id) {
+    await db
+      .update(digestDeliveries)
+      .set({
+        status: input.status,
+        channel: input.channel,
+        conversationId: input.conversationId ?? null,
+        providerMessageId: input.providerMessageId ?? null,
+        error: input.error ?? null,
+        attemptedAt: now,
+        deliveredAt,
+        updatedAt: now,
+      })
+      .where(eq(digestDeliveries.id, input.id));
+    return input.id;
+  }
+
+  const [created] = await db
+    .insert(digestDeliveries)
+    .values({
+      memberId: input.memberId,
+      discoveryRunId: input.discoveryRunId,
+      conversationId: input.conversationId ?? null,
+      channel: input.channel,
+      idempotencyKey: input.idempotencyKey,
+      status: input.status,
+      providerMessageId: input.providerMessageId ?? null,
+      error: input.error ?? null,
+      attemptedAt: now,
+      deliveredAt,
+    })
+    .onConflictDoNothing()
+    .returning({ id: digestDeliveries.id });
+  return created?.id;
+}
+
+async function markOpportunitiesPinged(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = getDb();
+  const now = new Date().toISOString();
+  for (const id of ids) {
+    await db
+      .update(opportunities)
+      .set({
+        status: "pinged",
+        pingedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(opportunities.id, id));
+  }
+}
+
+/**
+ * Deliver a digest for members with material opportunity changes.
+ * Telegram send + canonical conversation row happen together. No-op,
+ * quiet hours, and revoked identity skip without messaging the member.
+ */
 export async function deliverDigestsForRun(input: {
   discoveryRunId: string;
   opportunityResults: OpportunityUpsertResult[];
+  now?: Date;
+  telegram?: TelegramBotTransport;
 }): Promise<DigestResult[]> {
   const materialByMember = new Map<string, string[]>();
   const memberIds = new Set<string>();
@@ -56,26 +137,20 @@ export async function deliverDigestsForRun(input: {
     const idempotencyKey = `digest:${input.discoveryRunId}:${memberId}`;
 
     if (opportunityIds.length === 0) {
-      const [skipped] = await db
-        .insert(digestDeliveries)
-        .values({
-          memberId,
-          discoveryRunId: input.discoveryRunId,
-          channel: "system",
-          idempotencyKey,
-          status: "skipped",
-          error: "no_material_changes",
-          attemptedAt: new Date(),
-        })
-        .onConflictDoNothing()
-        .returning({ id: digestDeliveries.id });
-
+      const deliveryId = await saveDelivery({
+        memberId,
+        discoveryRunId: input.discoveryRunId,
+        channel: "system",
+        idempotencyKey,
+        status: "skipped",
+        error: "no_material_changes",
+      });
       results.push({
         memberId,
         delivered: false,
         skipped: true,
         reason: "no_material_changes",
-        deliveryId: skipped?.id,
+        deliveryId,
       });
       continue;
     }
@@ -127,77 +202,79 @@ export async function deliverDigestsForRun(input: {
       continue;
     }
 
-    let conversationId: string;
-    const existing = await listConversations(memberId, { limit: 1 });
-    if (existing.conversations[0]) {
-      conversationId = existing.conversations[0].id;
-    } else {
-      const created = await createConversation(memberId, {
-        title: "Opportunity digests",
-      });
-      conversationId = created.id;
-    }
-
     const body = formatDigest(materialRows);
-    await appendMessage({
+    const send = await sendProactiveTelegramMessage({
       memberId,
-      conversationId,
-      role: "assistant",
-      surface: "system",
       body,
-      idempotencyKey: `msg:${idempotencyKey}`,
+      now: input.now,
+      transport: input.telegram,
     });
 
-    if (existingDelivery) {
-      await db
-        .update(digestDeliveries)
-        .set({
-          status: "sent",
-          conversationId,
-          deliveredAt: new Date(),
-          attemptedAt: new Date(),
-          error: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(digestDeliveries.id, existingDelivery.id));
+    if (send.status === "skipped") {
+      const deliveryId = await saveDelivery({
+        id: existingDelivery?.id,
+        memberId,
+        discoveryRunId: input.discoveryRunId,
+        channel: "telegram",
+        idempotencyKey,
+        status: "skipped",
+        error: send.reason,
+      });
       results.push({
         memberId,
-        delivered: true,
-        skipped: false,
-        deliveryId: existingDelivery.id,
+        delivered: false,
+        skipped: true,
+        reason: send.reason,
+        deliveryId,
       });
-    } else {
-      const [created] = await db
-        .insert(digestDeliveries)
-        .values({
-          memberId,
-          discoveryRunId: input.discoveryRunId,
-          conversationId,
-          channel: "system",
-          idempotencyKey,
-          status: "sent",
-          attemptedAt: new Date(),
-          deliveredAt: new Date(),
-        })
-        .returning({ id: digestDeliveries.id });
-      results.push({
-        memberId,
-        delivered: true,
-        skipped: false,
-        deliveryId: created?.id,
-      });
+      continue;
     }
 
-    for (const row of materialRows) {
-      await db
-        .update(opportunities)
-        .set({
-          status: "pinged",
-          pingedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
-        .where(eq(opportunities.id, row.id));
+    if (send.status === "failed") {
+      await saveDelivery({
+        id: existingDelivery?.id,
+        memberId,
+        discoveryRunId: input.discoveryRunId,
+        channel: "telegram",
+        idempotencyKey,
+        status: "failed",
+        error: send.error,
+      });
+      throw new Error(`telegram_digest_failed:${memberId}:${send.error}`);
     }
+
+    const conversation = await getOrCreateActiveConversation(memberId, {
+      title: "Opportunity digests",
+    });
+    await appendMessage({
+      memberId,
+      conversationId: conversation.id,
+      role: "assistant",
+      surface: "telegram",
+      body,
+      idempotencyKey: `msg:${idempotencyKey}`,
+      externalMessageId: send.providerMessageId,
+    });
+
+    const deliveryId = await saveDelivery({
+      id: existingDelivery?.id,
+      memberId,
+      discoveryRunId: input.discoveryRunId,
+      conversationId: conversation.id,
+      channel: "telegram",
+      idempotencyKey,
+      status: "sent",
+      providerMessageId: send.providerMessageId,
+    });
+
+    await markOpportunitiesPinged(materialRows.map((row) => row.id));
+
+    results.push({
+      memberId,
+      delivered: true,
+      skipped: false,
+      deliveryId,
+    });
   }
 
   return results;

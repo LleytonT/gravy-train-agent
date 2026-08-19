@@ -1,4 +1,6 @@
 export { runDiscovery } from "./run.js";
+export { deliverDigestsForRun } from "./digest.js";
+export type { DigestResult } from "./digest.js";
 export { analyzeFit, hardConstraintViolation } from "./analysts/fit.js";
 export { extractJobAlertFromSourceItem } from "./analysts/job-alert.js";
 export { deriveSecondaryCandidatesFromResearch } from "./analysts/company-research.js";

@@ -10,6 +10,7 @@ import { inArray } from "drizzle-orm";
 
 import { getDb } from "../db/client.js";
 import { sourceItems } from "../db/schema.js";
+import type { TelegramBotTransport } from "../telegram-send.js";
 import { claimDiscoveryRun, completeDiscoveryRun } from "./claim.js";
 import { deliverDigestsForRun } from "./digest.js";
 import { createLimitTracker } from "./limits.js";
@@ -56,6 +57,7 @@ async function markSourceItemsProcessed(ids: string[]): Promise<void> {
  */
 export async function runDiscovery(
   trigger: DiscoveryTrigger,
+  options?: { telegram?: TelegramBotTransport },
 ): Promise<DiscoveryRunOutcome> {
   const claim = await claimDiscoveryRun({
     idempotencyKey: trigger.idempotencyKey,
@@ -139,6 +141,8 @@ export async function runDiscovery(
     const digests = await deliverDigestsForRun({
       discoveryRunId: runId,
       opportunityResults,
+      now: trigger.asOf,
+      telegram: options?.telegram,
     });
     for (const digest of digests) {
       if (digest.delivered) counts.digestsDelivered += 1;
