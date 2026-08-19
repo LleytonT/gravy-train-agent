@@ -13,7 +13,6 @@ export default defineEval({
     t.calledTool("list_opportunities", { status: "completed", count: 1 });
     t.notCalledTool("create_opportunity");
     t.notCalledTool("send_telegram_message");
-    t.notCalledTool("send_whatsapp_message");
     t.check(t.reply, includes(/nothing notable/i));
   },
 });

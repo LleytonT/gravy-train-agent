@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * GS-004 smoke checks for the canonical conversation module.
- * Does not require a running Next server or Clerk browser session.
+ * Does not require a running Next server.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

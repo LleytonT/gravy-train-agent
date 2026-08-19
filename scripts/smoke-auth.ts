@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * GS-002 smoke checks for identity resolution and anonymous auth removal.
- * Does not require a running Next server or Clerk browser session.
+ * Does not require a running Next server.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -36,8 +36,8 @@ async function main() {
     "Eve channel missing memberSessionAuth() for Telegram Login sessions",
   );
   assert(
-    eveChannel.includes("clerkMemberAuth"),
-    "Eve channel missing optional clerkMemberAuth()",
+    !eveChannel.includes("clerkMemberAuth"),
+    "Eve channel must not include Clerk auth",
   );
   assert(
     eveChannel.includes("localDevMemberAuth") ||
@@ -46,10 +46,10 @@ async function main() {
   );
 
   const proxy = readFileSync(resolve("proxy.ts"), "utf8");
-  assert(proxy.includes("clerkMiddleware"), "proxy.ts missing clerkMiddleware");
+  assert(!proxy.includes("clerkMiddleware"), "proxy.ts must not use Clerk");
   assert(
-    proxy.includes("auth.protect") || proxy.includes("hasMemberSession"),
-    "proxy.ts must protect the app shell via member session or Clerk",
+    proxy.includes("hasMemberSession"),
+    "proxy.ts must protect the app shell via member session",
   );
   assert(
     proxy.includes("/get-started"),
@@ -63,12 +63,12 @@ async function main() {
 
   try {
     const memberA = await upsertMemberFromExternalAuth({
-      externalAuthId: `clerk_smoke_a_${runId}`,
+      externalAuthId: `telegram_smoke_a_${runId}`,
       email: `a-${runId}@example.invalid`,
       displayName: "Smoke A",
     });
     const memberAAgain = await upsertMemberFromExternalAuth({
-      externalAuthId: `clerk_smoke_a_${runId}`,
+      externalAuthId: `telegram_smoke_a_${runId}`,
       email: `a-${runId}@example.invalid`,
       displayName: "Smoke A Updated",
     });
@@ -79,7 +79,7 @@ async function main() {
     );
 
     const memberB = await upsertMemberFromExternalAuth({
-      externalAuthId: `clerk_smoke_b_${runId}`,
+      externalAuthId: `telegram_smoke_b_${runId}`,
       email: `b-${runId}@example.invalid`,
       displayName: "Smoke B",
     });
@@ -125,7 +125,7 @@ async function main() {
       session: {
         auth: {
           current: {
-            authenticator: "clerk",
+            authenticator: "telegram",
             principalId: "user_smoke",
             principalType: "user",
             attributes: { memberId: memberA.id },

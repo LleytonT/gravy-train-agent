@@ -7,7 +7,7 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 - **Member** — a person with a Gravy Scout account. A member may use several surfaces and connect several sources.
 - **Career profile** — the structured, member-owned facts Gravy Scout uses to personalize work: experience, skills, constraints, ambitions, preferences, and explicit feedback.
 - **Preference** — a durable member choice that affects discovery or ranking. Preferences have provenance and may be explicit or inferred; inferred preferences must never silently override explicit ones.
-- **Channel identity** — an external identity linked to a member, such as a Telegram user ID. A username is display metadata, not identity.
+- **Channel identity** — an external identity linked to a member, such as a Telegram user ID. A username is display metadata, not identity. Telegram is the primary proof of membership; later channels add additional channel identities to the same member.
 - **Connection** — revocable authorization for Gravy Scout to read a member-controlled source such as Gmail. A connection is not a channel identity.
 
 ## Opportunity intelligence

@@ -38,14 +38,11 @@
     "test:scoring": "tsx scripts/smoke-scoring.ts"
   },
   "dependencies": {
-    "@clerk/backend": "^3.15.0",
-    "@clerk/nextjs": "^7.6.4",
     "@neondatabase/serverless": "^1.1.0",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
     "@streamdown/math": "^1.0.2",
     "@streamdown/mermaid": "^1.0.2",
-    "@vercel/connect": "0.2.2",
     "ai": "^7.0.37",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -71,7 +68,6 @@
     "node": "24.x"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.16",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",

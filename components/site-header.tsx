@@ -4,10 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
-  OptionalSignInButton,
-  OptionalUserButton,
-} from "@/components/auth/optional-clerk";
-import {
   fetchSessionStatus,
   signOutMemberSession,
 } from "@/components/auth/member-session";
@@ -75,14 +71,7 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
             >
               Sign out
             </Button>
-          ) : (
-            <OptionalSignInButton>
-              <Button size="sm" variant="ghost" className="ml-1">
-                Email sign-in
-              </Button>
-            </OptionalSignInButton>
-          )}
-          <OptionalUserButton />
+          ) : null}
         </nav>
       </div>
     </header>
