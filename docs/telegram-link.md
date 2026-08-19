@@ -4,7 +4,7 @@ Gravy Scout links Telegram with a verified user ID. Texting the bot in a private
 
 ## First contact
 
-A private Telegram message with no prior `channel_identities` row calls `upsertMemberFromTelegramLogin`. Username-only linking is rejected.
+A private Telegram message with no prior `channel_identities` row calls `upsertMemberFromTelegramLogin`. Bare `/start` (no token) and a first ordinary DM both take this path. Username-only linking is rejected.
 
 ## Web reconnect / Login Widget fallback
 
@@ -33,6 +33,7 @@ Only `agent/lib/identity.ts` creates/consumes link tokens and reads/writes `chan
 ```bash
 pnpm db:migrate
 pnpm test:telegram-link
+pnpm test:telegram-cold-start
 pnpm test:conversation
 pnpm test:auth
 pnpm typecheck

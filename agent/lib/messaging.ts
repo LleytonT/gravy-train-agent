@@ -74,7 +74,7 @@ export function formatMessagingSection(dest: MessagingDestination): string {
     `- onboardingComplete: ${dest.onboardingComplete ? "true" : "false"}`,
     `- quietHours: ${quiet.start ?? ""}–${quiet.end ?? ""} ${quiet.timezone ?? ""}`.trimEnd(),
     ``,
-    `I'll use Telegram to send nightly opportunity updates when linked via a one-time web deep link. Reply anytime to chat.`,
+    `I'll use Telegram to send nightly opportunity updates when you consent. Reply anytime to chat.`,
   ].join("\n");
 }
 

@@ -34,6 +34,15 @@ function isGreeting(message: string): boolean {
   return /^(hi|hello|hey)\b/i.test(trimmed) && trimmed.length < 48;
 }
 
+/** Bare Telegram /start or an explicit cold-start probe — talk, never website-gate. */
+function isTelegramColdStart(message: string): boolean {
+  const trimmed = message.trim();
+  return (
+    /^\/start(?:@[A-Za-z0-9_]+)?\s*$/i.test(trimmed) ||
+    /\[eval:telegram-cold-start\]/i.test(trimmed)
+  );
+}
+
 function isInjectionOrUnapproved(message: string): boolean {
   return (
     /ignore (previous|all|system) (instructions|rules)/i.test(message) ||
@@ -208,8 +217,8 @@ function respond(request: MockModelRequest): MockModelResponse | string {
 
   const message = textOf(request);
 
-  if (isGreeting(message)) {
-    return "Hey — ready when you are. Want role matches, a preference update, or a company deep-dive?";
+  if (isGreeting(message) || isTelegramColdStart(message)) {
+    return "Welcome to Gravy Scout — I'm your career scout. Ready when you are. Want role matches, a preference update, or a company deep-dive?";
   }
 
   if (isInjectionOrUnapproved(message)) {
