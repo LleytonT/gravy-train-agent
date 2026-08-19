@@ -109,6 +109,22 @@ export default defineTool({
       };
     }
 
+    if (!chatId && dest.digestPaused) {
+      await recordDelivery({
+        memberId,
+        channel: "telegram",
+        idempotencyKey: deliveryKey,
+        status: "skipped",
+        error: "digest paused",
+      });
+      return {
+        sent: false,
+        skipped: true,
+        reason:
+          "Member paused digest delivery. They can /resume in Telegram when they want updates again.",
+      };
+    }
+
     if (!chatId && isWithinQuietHours(dest.quietHours)) {
       await recordDelivery({
         memberId,

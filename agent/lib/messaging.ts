@@ -16,6 +16,8 @@ export type QuietHours = {
   timezone: string | null;
 };
 
+export type DigestCadence = "realtime" | "daily" | "weekly";
+
 export type MessagingDestination = {
   telegramChatId: string | null;
   telegramUsername: string | null;
@@ -23,6 +25,9 @@ export type MessagingDestination = {
   consentUpdates: boolean;
   onboardingComplete: boolean;
   quietHours: QuietHours;
+  /** Explicit pause of digest delivery; distinct from consent. */
+  digestPaused: boolean;
+  digestCadence: DigestCadence | null;
 };
 
 const EMPTY_QUIET_HOURS: QuietHours = {
@@ -38,6 +43,8 @@ const EMPTY: MessagingDestination = {
   consentUpdates: false,
   onboardingComplete: false,
   quietHours: { ...EMPTY_QUIET_HOURS },
+  digestPaused: false,
+  digestCadence: null,
 };
 
 function normalizeQuietHours(
@@ -61,7 +68,18 @@ export async function getMessagingDestination(
     ...EMPTY,
     ...messaging,
     quietHours: normalizeQuietHours(messaging.quietHours),
+    digestPaused: Boolean(messaging.digestPaused),
+    digestCadence: normalizeDigestCadence(messaging.digestCadence),
   };
+}
+
+function normalizeDigestCadence(
+  value: unknown,
+): DigestCadence | null {
+  if (value === "realtime" || value === "daily" || value === "weekly") {
+    return value;
+  }
+  return null;
 }
 
 export function formatMessagingSection(dest: MessagingDestination): string {
@@ -72,6 +90,8 @@ export function formatMessagingSection(dest: MessagingDestination): string {
     `- linkedAt: ${dest.linkedAt ?? ""}`,
     `- consentUpdates: ${dest.consentUpdates ? "true" : "false"}`,
     `- onboardingComplete: ${dest.onboardingComplete ? "true" : "false"}`,
+    `- digestPaused: ${dest.digestPaused ? "true" : "false"}`,
+    `- digestCadence: ${dest.digestCadence ?? ""}`,
     `- quietHours: ${quiet.start ?? ""}–${quiet.end ?? ""} ${quiet.timezone ?? ""}`.trimEnd(),
     ``,
     `I'll use Telegram to send nightly opportunity updates when linked via a one-time web deep link. Reply anytime to chat.`,
@@ -87,6 +107,8 @@ export async function saveMessagingDestination(
     onboardingComplete?: boolean;
     markLinked?: boolean;
     quietHours?: QuietHours | Partial<QuietHours> | null;
+    digestPaused?: boolean;
+    digestCadence?: DigestCadence | null;
   },
 ): Promise<MessagingDestination> {
   return saveMessagingForMember(memberId, input);

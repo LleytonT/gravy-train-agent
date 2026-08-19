@@ -75,16 +75,21 @@ async function main() {
     resolve("agent/channels/telegram.ts"),
     "utf8",
   );
-  assert(
-    telegramChannel.includes("consumeTelegramDeepLink"),
-    "telegram channel must consume deep-link login/link tokens on /start",
+  const telegramBot = readFileSync(
+    resolve("agent/lib/telegram-bot.ts"),
+    "utf8",
   );
   assert(
-    telegramChannel.includes("beginSurfaceTurn"),
-    "telegram channel must route through conversation bridge",
+    telegramBot.includes("consumeTelegramDeepLink"),
+    "telegram bot must consume deep-link login/link tokens on /start",
+  );
+  assert(
+    telegramBot.includes("beginSurfaceTurn"),
+    "telegram bot must route through conversation bridge",
   );
   assert(
     telegramChannel.includes("Username-only linking is not supported") ||
+      telegramBot.includes("Username-only linking is not supported") ||
       telegramChannel.includes("usernames alone cannot link"),
     "telegram channel must reject username-only linking",
   );

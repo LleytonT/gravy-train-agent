@@ -1,24 +1,23 @@
 import { telegramChannel } from "eve/channels/telegram";
+import type {
+  TelegramCallbackQuery,
+  TelegramContext,
+  TelegramMessage,
+} from "eve/channels/telegram";
 
 import {
-  beginSurfaceTurn,
   completeSurfaceTurn,
-  getOrCreateActiveConversation,
   syncSurfaceSessionCursor,
 } from "../lib/conversation.js";
 import {
-  ChannelLinkError,
-  consumeTelegramDeepLink,
-  findMemberByTelegramUserId,
-  touchTelegramIdentityUsername,
-} from "../lib/identity.js";
-import {
-  getMessagingDestination,
-  saveMessagingDestination,
-} from "../lib/messaging.js";
+  handleTelegramInbound,
+  type TelegramBotAttachment,
+  type TelegramBotInbound,
+  type TelegramBotReply,
+} from "../lib/telegram-bot.js";
 
 /**
- * Telegram bot channel (primary push + chat surface alongside Web).
+ * Telegram bot channel — primary member surface (GS-015).
  *
  * Env:
  *   TELEGRAM_BOT_TOKEN
@@ -27,230 +26,161 @@ import {
  *
  * Webhook: POST /eve/v1/telegram
  *
- * Linking uses a short-lived, single-use deep-link token minted by the
- * authenticated web member (GS-005). Username-only linking is rejected.
- * Inbound/outbound turns go through the canonical conversation bridge.
+ * Commands are routed before the LLM. Bare /start always replies.
+ * Deep-link tokens (`/start <token>`) keep the GS-005 consume path.
+ * Usernames alone cannot link an account — identity is the Telegram user ID.
+ * Username-only linking is not supported.
  */
 
 const botUsername = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, "");
 
-const START_COMMAND =
-  /^\/start(?:@([A-Za-z0-9_]+))?(?:\s+([A-Za-z0-9_-]+))?\s*$/u;
-
-function parseStartPayload(
-  text: string,
-  configuredBot?: string,
-): { isStart: boolean; token: string | null } {
-  const match = START_COMMAND.exec(text.trim());
-  if (!match) return { isStart: false, token: null };
-  const target = match[1];
-  if (
-    target &&
-    configuredBot &&
-    target.toLowerCase() !== configuredBot.toLowerCase()
-  ) {
-    return { isStart: false, token: null };
-  }
-  return { isStart: true, token: match[2] ?? null };
+function attachmentsOf(message: TelegramMessage): TelegramBotAttachment[] {
+  return message.attachments.map((item) => ({
+    fileId: item.fileId,
+    fileName: item.fileName,
+    mediaType: item.mediaType,
+    kind: item.kind,
+  }));
 }
 
-async function persistChatDestination(input: {
-  memberId: string;
-  chatId: string;
-  username?: string | null;
-  consentUpdates?: boolean;
-}): Promise<void> {
-  const existing = await getMessagingDestination(input.memberId);
-  await saveMessagingDestination(input.memberId, {
-    telegramChatId: input.chatId,
-    telegramUsername: input.username ?? existing.telegramUsername,
-    consentUpdates:
-      input.consentUpdates !== undefined
-        ? input.consentUpdates
-        : existing.consentUpdates || true,
-    markLinked: true,
-  });
+function inboundFromMessage(message: TelegramMessage): TelegramBotInbound | null {
+  const from = message.from;
+  if (!from) return null;
+  return {
+    kind: "message",
+    text: (message.text || message.caption).trim(),
+    telegramUserId: from.id,
+    chatId: message.chat.id,
+    username: from.username,
+    displayName: [from.firstName, from.lastName].filter(Boolean).join(" ").trim() || null,
+    messageId: message.messageId,
+    attachments: attachmentsOf(message),
+  };
 }
 
-async function replyAndDrop(
-  ctx: { telegram: { sendMessage: (text: string) => Promise<unknown> } },
-  text: string,
-): Promise<null> {
+function inboundFromCallback(
+  query: TelegramCallbackQuery,
+): TelegramBotInbound | null {
+  const chatId = query.message?.chat.id;
+  if (!chatId) return null;
+  return {
+    kind: "callback",
+    text: query.data ?? "",
+    telegramUserId: query.from.id,
+    chatId,
+    username: query.from.username,
+    displayName:
+      [query.from.firstName, query.from.lastName].filter(Boolean).join(" ").trim() ||
+      null,
+    messageId: query.message?.messageId ?? query.id,
+    attachments: [],
+    callbackData: query.data,
+    callbackQueryId: query.id,
+  };
+}
+
+async function postReply(
+  ctx: TelegramContext,
+  result: TelegramBotReply,
+): Promise<void> {
+  if (result.skipDuplicate) return;
+  if (!result.text && !result.extraMessages?.length) return;
   try {
-    await ctx.telegram.sendMessage(text);
+    if (result.text) {
+      await ctx.telegram.sendMessage(
+        result.replyMarkup
+          ? { text: result.text, reply_markup: result.replyMarkup }
+          : result.text,
+      );
+    }
+    for (const extra of result.extraMessages ?? []) {
+      await ctx.telegram.sendMessage(
+        extra.replyMarkup
+          ? { text: extra.text, reply_markup: extra.replyMarkup }
+          : extra.text,
+      );
+    }
   } catch (err) {
     console.warn(
-      "[telegram] failed to send link reply:",
+      "[telegram] failed to send bot reply:",
       err instanceof Error ? err.message : err,
     );
   }
-  return null;
 }
 
 export default telegramChannel({
   botUsername: botUsername || undefined,
+  uploadPolicy: {
+    allowedMediaTypes: [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/csv",
+      "text/plain",
+      "application/octet-stream",
+      "image/*",
+    ],
+    maxBytes: 10 * 1024 * 1024,
+  },
   async onMessage(ctx, message) {
-    // Drop bot messages / empty channel noise — mirror Eve defaults lightly.
     if (message.from?.isBot || message.chat.type === "channel") {
       return null;
     }
-    const text = (message.text || message.caption).trim();
-    if (!text && message.attachments.length === 0) {
-      return null;
-    }
-
-    const from = message.from;
-    if (!from) return null;
-
-    // Group chats are out of scope for GS-005 linking.
     if (message.chat.type !== "private") {
       return null;
     }
-
-    const start = parseStartPayload(text, botUsername);
-    if (start.isStart) {
-      if (!start.token || start.token === "link") {
-        return replyAndDrop(
-          ctx,
-          "To link Telegram, open the one-time link from your signed-in Gravy Scout account on the web. Username-only linking is not supported.",
-        );
-      }
-
-      try {
-        const displayName = [from.firstName, from.lastName]
-          .filter(Boolean)
-          .join(" ")
-          .trim();
-        const { kind, identity } = await consumeTelegramDeepLink({
-          token: start.token,
-          telegramUserId: from.id,
-          username: from.username,
-          displayName: displayName || null,
-        });
-        await persistChatDestination({
-          memberId: identity.memberId,
-          chatId: String(message.chat.id),
-          username: from.username,
-          consentUpdates: true,
-        });
-        // Record the link/login confirmation on the canonical timeline.
-        const conversation = await getOrCreateActiveConversation(
-          identity.memberId,
-          { title: kind === "login" ? "Telegram login" : "Telegram link" },
-        );
-        await beginSurfaceTurn({
-          memberId: identity.memberId,
-          conversationId: conversation.id,
-          surface: "telegram",
-          body: text,
-          idempotencyKey: `telegram:msg:${message.messageId}`,
-          externalMessageId: message.messageId,
-          titleFromBody: false,
-        });
-        const assistantBody =
-          kind === "login"
-            ? "You're signed in. Return to the browser to continue — web and Telegram share the same conversation."
-            : "Telegram linked. You can keep chatting here or on the web — same conversation.";
-        await completeSurfaceTurn({
-          memberId: identity.memberId,
-          conversationId: conversation.id,
-          surface: "telegram",
-          assistantBody,
-          assistantIdempotencyKey: `telegram:${kind}:${message.messageId}`,
-          eveSessionId: `telegram-${kind}:${message.messageId}`,
-        });
-        return replyAndDrop(
-          ctx,
-          kind === "login"
-            ? "You're signed in to Gravy Scout. Return to the browser tab to continue."
-            : "Telegram linked to your Gravy Scout account. You can keep chatting here or on the web — same conversation.",
-        );
-      } catch (err) {
-        if (err instanceof ChannelLinkError) {
-          const hints: Record<string, string> = {
-            malformed:
-              "That link looks invalid. Generate a fresh Telegram link from the web app.",
-            not_found:
-              "That link was not recognized. Generate a fresh Telegram link from the web app.",
-            expired:
-              "That link has expired. Generate a fresh Telegram link from the web app.",
-            used: "That link was already used. Generate a fresh Telegram link from the web app.",
-            conflict:
-              "This Telegram account is already linked to a different Gravy Scout member. Disconnect it there first, or sign in as that member.",
-          };
-          return replyAndDrop(
-            ctx,
-            hints[err.code] ??
-              "Could not link Telegram. Generate a fresh link from the web app.",
-          );
-        }
-        console.warn(
-          "[telegram] link consume failed:",
-          err instanceof Error ? err.message : err,
-        );
-        return replyAndDrop(
-          ctx,
-          "Something went wrong while linking. Try a fresh link from the web app.",
-        );
-      }
+    const inbound = inboundFromMessage(message);
+    if (!inbound) return null;
+    if (!inbound.text && inbound.attachments.length === 0) {
+      return null;
     }
 
-    const member = await findMemberByTelegramUserId(from.id);
-    if (!member) {
-      return replyAndDrop(
-        ctx,
-        "This Telegram account is not linked yet. Sign in on the web, open Profile → Telegram, and use the one-time link. Usernames alone cannot link an account.",
-      );
-    }
-
+    let result: TelegramBotReply;
     try {
-      await touchTelegramIdentityUsername(from.id, from.username);
-      await persistChatDestination({
-        memberId: member.id,
-        chatId: String(message.chat.id),
-        username: from.username,
+      result = await handleTelegramInbound(inbound, {
+        configuredBot: botUsername,
       });
     } catch (err) {
       console.warn(
-        "[telegram] failed to persist messaging destination:",
+        "[telegram] handler failed:",
         err instanceof Error ? err.message : err,
       );
+      await postReply(ctx, {
+        text: "Something went wrong on my side. Send /start and I'll pick up where we left off.",
+        routeToAgent: false,
+        memberId: null,
+      });
+      return null;
+    }
+
+    if (result.skipDuplicate) return null;
+
+    if (!result.routeToAgent) {
+      await postReply(ctx, result);
+      return null;
     }
 
     await ctx.telegram.startTyping();
 
-    const conversation = await getOrCreateActiveConversation(member.id);
-    const turn = await beginSurfaceTurn({
-      memberId: member.id,
-      conversationId: conversation.id,
-      surface: "telegram",
-      body: text || "[attachment]",
-      idempotencyKey: `telegram:msg:${message.messageId}`,
-      externalMessageId: message.messageId,
-    });
-
-    // Webhook retries with the same message id must not fork a second Eve turn.
-    if (!turn.created) {
-      return null;
-    }
+    const from = message.from;
+    if (!from) return null;
 
     const attributes: Record<string, string> = {
       chat_id: message.chat.id,
       chat_type: message.chat.type,
       message_id: message.messageId,
       user_id: from.id,
-      memberId: member.id,
-      conversationId: conversation.id,
+      memberId: result.memberId ?? "",
+      conversationId: result.conversationId ?? "",
     };
-    if (from.username !== undefined) attributes.username = from.username;
+    if (from.username !== undefined) {
+      attributes.username = from.username;
+    }
     if (message.messageThreadId !== undefined) {
       attributes.message_thread_id = String(message.messageThreadId);
     }
 
     const context: string[] = [];
-    if (turn.shouldInjectContext && turn.contextPrefix) {
-      context.push(turn.contextPrefix);
-    }
+    if (result.contextPrefix) context.push(result.contextPrefix);
 
     return {
       auth: {
@@ -263,6 +193,35 @@ export default telegramChannel({
       },
       context: context.length > 0 ? context : undefined,
     };
+  },
+
+  async onCallbackQuery(ctx, query) {
+    try {
+      await ctx.telegram.answerCallbackQuery({ callbackQueryId: query.id });
+    } catch (err) {
+      console.warn(
+        "[telegram] answerCallbackQuery failed:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+    const inbound = inboundFromCallback(query);
+    if (!inbound) return;
+    try {
+      const result = await handleTelegramInbound(inbound, {
+        configuredBot: botUsername,
+      });
+      await postReply(ctx, result);
+    } catch (err) {
+      console.warn(
+        "[telegram] callback handler failed:",
+        err instanceof Error ? err.message : err,
+      );
+      await postReply(ctx, {
+        text: "Something went wrong on that button. Try /opportunities.",
+        routeToAgent: false,
+        memberId: null,
+      });
+    }
   },
 
   events: {

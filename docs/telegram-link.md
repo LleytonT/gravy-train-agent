@@ -7,12 +7,14 @@ Gravy Scout links Telegram with a short-lived, single-use deep-link token minted
 1. Signed-in member calls `POST /api/telegram/link` (or Eve tool `save_messaging_destination` with `action=link`).
 2. Identity module stores a SHA-256 hash of a random token and returns `https://t.me/<bot>?start=<token>`.
 3. Member opens the link and taps Start. Eve's Telegram webhook verifies `X-Telegram-Bot-Api-Secret-Token`, then `onMessage` consumes the token.
-4. `consumeTelegramLinkToken` binds the verified Telegram **user ID** to the minting member, marks the token used, and updates messaging consent/chat id.
-5. Later inbound messages resolve `telegram user id → memberId` and route through the canonical conversation bridge (`beginSurfaceTurn` / `completeSurfaceTurn`).
+4. `consumeTelegramDeepLink` binds the verified Telegram **user ID** to the minting member, marks the token used, and updates messaging consent/chat id. The bot then sends the known-member welcome (no re-intake).
+5. Bare `/start` (no token) is Telegram-first onboarding: upsert member + channel identity, welcome, and durable intake. Username-only linking is not supported.
+6. Later inbound messages resolve `telegram user id → memberId`. Commands are handled before the Eve session; other text goes through the canonical conversation bridge (`beginSurfaceTurn` / `completeSurfaceTurn`).
 
 ## Rules
 
 - Expired, replayed, malformed, or already-used tokens are rejected.
+- `proxy.ts` keeps `/eve/v1/telegram` public so Telegram can POST updates; Eve verifies the webhook secret. Clerk `auth.protect()` must not wrap the bot webhook.
 - Tokens belong only to the member who created them.
 - An active Telegram identity cannot silently move to another member (conflict until revoked).
 - Username changes update display metadata; identity remains the Telegram user ID.
@@ -28,6 +30,7 @@ Only `agent/lib/identity.ts` creates/consumes link tokens and reads/writes `chan
 
 ```bash
 pnpm db:migrate
+pnpm test:telegram-bot
 pnpm test:telegram-link
 pnpm test:conversation
 pnpm test:auth

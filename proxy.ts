@@ -22,6 +22,9 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname === "/eve/v1/health" ||
+    pathname.startsWith("/eve/v1/telegram") ||
+    pathname.startsWith("/eve/v1/twilio") ||
+    pathname.startsWith("/eve/v1/capture-sync") ||
     pathname === "/api/messaging-config" ||
     pathname.startsWith("/api/auth") ||
     pathname === "/api/onboarding/preview" ||
@@ -80,6 +83,9 @@ async function buildMiddleware() {
     "/sign-in(.*)",
     "/sign-up(.*)",
     "/eve/v1/health",
+    "/eve/v1/telegram(.*)",
+    "/eve/v1/twilio(.*)",
+    "/eve/v1/capture-sync(.*)",
     "/api/messaging-config",
     "/api/auth(.*)",
     "/api/onboarding/preview",
