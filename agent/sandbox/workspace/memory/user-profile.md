@@ -20,7 +20,7 @@
 ## Identity
 
 - Name: Alex
-- WhatsApp: _(optional)_
+- Telegram: _(optional)_
 - Location: Sydney, Australia
 - Role today: Sales Engineer at Vercel
 

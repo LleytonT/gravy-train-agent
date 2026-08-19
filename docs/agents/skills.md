@@ -11,7 +11,7 @@ The following project-local skills from `mattpocock/skills` are committed under 
 - `to-spec` — turns an established conversation into a product specification.
 - `to-tickets` — decomposes a specification into dependency-aware tracer bullets.
 - `handoff` — creates a compact continuation document for a fresh agent.
-- `clerk-setup`, `clerk-nextjs-patterns`, `clerk-testing`, `clerk-backend-api`, `clerk-webhooks`, `clerk-orgs` — Clerk Marketplace guidance used for GS-002.
+- Resend inbound skills (`resend`, `agent-email-inbox`, `email-best-practices`) — GS-006 job-alert receiving. Do not add Clerk skills; member auth is Telegram (ADR 0005).
 
 Use `to-spec` only after reading `CONTEXT.md` and current ADRs. Use `to-tickets` only when the requested capability is not already represented under `docs/tickets/`.
 
@@ -21,7 +21,7 @@ Use `to-spec` only after reading `CONTEXT.md` and current ADRs. Use `to-tickets`
 - `shadcn` for UI primitives and product composition.
 - `nextjs` for App Router and server/client boundaries.
 - `vercel-storage` before provisioning or changing the production data layer.
-- `auth` before implementing member authentication.
+- `auth` is not used for an IdP. Member authentication is Telegram (ADR 0005). Do not add Clerk.
 - `vercel-connect` for managed third-party OAuth in Eve connections.
 - `marketplace` before selecting or provisioning inbound email, search, observability, or other external capabilities.
 - `verification` whenever a development server is started or a full product path must be demonstrated.

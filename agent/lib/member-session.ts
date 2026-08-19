@@ -1,6 +1,6 @@
 /**
- * Gravy Scout member session tokens — used after Telegram Login (primary)
- * or as a stable Bearer for Eve when Clerk is not the web principal.
+ * Gravy Scout member session tokens — minted after Telegram Login (web)
+ * or local-dev. Telegram chat uses the webhook principal, not this JWT.
  */
 
 import { createHash, randomBytes } from "node:crypto";
@@ -17,15 +17,14 @@ export {
 export type MemberSessionClaims = {
   memberId: string;
   externalAuthId: string;
-  authenticator: "telegram" | "clerk" | "local-dev";
+  authenticator: "telegram" | "local-dev";
   displayName?: string | null;
 };
 
 function sessionSecretKey(): Uint8Array {
   const configured =
     process.env.MEMBER_SESSION_SECRET?.trim() ||
-    process.env.TELEGRAM_BOT_TOKEN?.trim() ||
-    process.env.CLERK_SECRET_KEY?.trim();
+    process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!configured) {
     // Deterministic local fallback so typecheck/smoke can import the module;
     // production requests must set a real secret (Telegram bot token is fine).
@@ -40,8 +39,7 @@ function sessionSecretKey(): Uint8Array {
 export function isMemberSessionSigningConfigured(): boolean {
   return Boolean(
     process.env.MEMBER_SESSION_SECRET?.trim() ||
-      process.env.TELEGRAM_BOT_TOKEN?.trim() ||
-      process.env.CLERK_SECRET_KEY?.trim(),
+      process.env.TELEGRAM_BOT_TOKEN?.trim(),
   );
 }
 
@@ -82,9 +80,7 @@ export async function verifyMemberSessionToken(
     if (
       !memberId ||
       !externalAuthId ||
-      (authenticator !== "telegram" &&
-        authenticator !== "clerk" &&
-        authenticator !== "local-dev")
+      (authenticator !== "telegram" && authenticator !== "local-dev")
     ) {
       return null;
     }

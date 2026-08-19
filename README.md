@@ -18,7 +18,7 @@ Start with:
 | Slice | Status |
 | --- | --- |
 | GS-001 Neon Postgres system of record | Shipped |
-| GS-002 Member identity (Telegram session + optional Clerk) | Shipped |
+| GS-002 Member identity (Telegram user ID + member session) | Shipped |
 | GS-003 Structured career profile + preference provenance | Shipped |
 | GS-004 Canonical conversation (web ↔ Telegram timeline) | Shipped |
 | GS-005 Secure Telegram linking, quiet hours, digest delivery | Shipped |
@@ -27,7 +27,7 @@ Start with:
 | GS-008 Public product pages + `/app` workspace (Today / Opportunities / Conversation / Profile) | Shipped |
 | GS-009 Eve eval fixture suite | Shipped |
 
-**Member journey today:** public `/` and `/how-it-works` → `/get-started` (career snapshot, goals, match preview with no login) → Telegram Login Widget to enter `/app` → inbound alert address on Profile → nightly discovery → ranked opportunities with evidence, fit, and disposition.
+**Member journey today:** text the Telegram bot (creates the member) or public `/` → `/get-started` (career snapshot, goals, match preview with no login) → Telegram Login Widget to enter `/app` → inbound alert address on Profile → nightly discovery → ranked opportunities with evidence, fit, and disposition.
 
 Web and Telegram keep **separate Eve sessions** (Eve continuation tokens are channel-local). Members see **one Postgres conversation**. Career profile, preferences, opportunities, and messaging consent live in Neon — not in `user-profile.md` or browser storage.
 
@@ -50,9 +50,9 @@ Still outside v1 / not built:
 | Agent | Eve (`agent/` filesystem: tools, skills, channels, schedules, subagents, evals) |
 | Models | Vercel AI Gateway — Sonnet-class for chat/synthesis (`AGENT_MODEL`), Haiku for batch classify (`CLASSIFY_MODEL`) |
 | DB | Neon Postgres + Drizzle migrations (`DATABASE_URL` pooled, `DATABASE_URL_UNPOOLED` for migrate) |
-| Auth | **Telegram Login Widget** (primary) + optional Clerk email; Eve: `memberSessionAuth` → Clerk → Vercel OIDC → local-dev. No anonymous `none()`. |
-| Email | Resend inbound on `gravy.sh` (`gs_…@gravy.sh` per member) |
-| Messaging | Telegram (primary chat + digests) · Twilio WhatsApp optional fallback |
+| Auth | **Telegram user ID** (text the bot or Login Widget); Eve: `memberSessionAuth` → Vercel OIDC → local-dev. No Clerk. No anonymous `none()`. |
+| Email | Resend inbound on `gravy.sh` (`gs_…@gravy.sh` per member) — job-alert receiving, not login |
+| Messaging | Telegram (primary chat + digests). Other channels later. |
 | Capture | Playwright against a local browser profile — **not** part of the member product |
 
 ## Quick start
@@ -60,7 +60,7 @@ Still outside v1 / not built:
 ```bash
 # Node 24+
 cp .env.example .env
-# Pull Marketplace secrets (Neon, optional Clerk, Resend):
+# Pull Marketplace secrets (Neon, Resend):
 #   pnpm dlx vercel env pull .env.local --yes
 # Add AI_GATEWAY_API_KEY for agent chat / classification.
 # Add TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME for Login Widget + bot.
@@ -72,7 +72,7 @@ pnpm dev           # Next.js + Eve (http://localhost:3000)
 pnpm dev:tui       # optional: Eve terminal UI instead
 ```
 
-Open `/` → **See your first matches**. Snapshot and goals are public; “Save & enter workspace” verifies with Telegram. Clerk email sign-in is optional when Clerk keys are present.
+Open `/` → **See your first matches**. Snapshot and goals are public; “Save & enter workspace” verifies with Telegram. You can skip the web app and just message the bot.
 
 Without `AI_GATEWAY_API_KEY` the server still boots: scoring, personalization, seed dossiers, and most smoke scripts work. Chat, classification, and discovery research that call a model return `GatewayAuthenticationError` (401).
 
@@ -96,7 +96,7 @@ agent/
   tools/                   # snake_case Eve tools
   subagents/               # job_alert_analyst, company_researcher, fit_analyst
   schedules/nightly_scout.ts   # calls runDiscovery — not free-form tool chaining
-  channels/                # eve, telegram, twilio, capture-sync
+  channels/                # eve, telegram, capture-sync
   lib/                     # db, identity, career-profile, conversation, ingestion, discovery, scoring
   sandbox/workspace/memory/user-profile.md   # legacy local projection only
 capture/                   # Playwright (developer Mac, not Vercel, not the member path)
@@ -116,9 +116,9 @@ Telegram Login is the primary web verification path. Completing `/get-started` a
 3. sets an httpOnly `gs_member_session` JWT
 4. Eve accepts that JWT through `memberSessionAuth()`
 
-`proxy.ts` keeps marketing + get-started public. `/app/*` redirects to `/get-started?verify=1` when neither a member session nor Clerk session is present.
+`proxy.ts` keeps marketing + get-started public. `/app/*` redirects to `/get-started?verify=1` when no member session is present.
 
-Details: [`docs/auth.md`](./docs/auth.md), ADR 0004. Deep-link tokens remain for reconnect: [`docs/telegram-link.md`](./docs/telegram-link.md).
+Details: [`docs/auth.md`](./docs/auth.md), ADR 0004 and ADR 0005. Deep-link tokens remain for reconnect: [`docs/telegram-link.md`](./docs/telegram-link.md).
 
 ## Inbound job alerts
 
@@ -136,7 +136,7 @@ curl -X POST http://127.0.0.1:3000/eve/v1/dev/schedules/nightly_scout
 
 Runs claim idempotently, process source items, derive cited signals, refresh dossiers, score member opportunities (`scoring.ts@v1`), and send a digest only on material change. See [`docs/discovery.md`](./docs/discovery.md).
 
-## Telegram (primary messaging + web auth)
+## Telegram (primary messaging + identity)
 
 1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token and username.
 2. Register the Login Widget domain (required for the embedded widget; deep-link login still works without it):
@@ -157,14 +157,10 @@ Runs claim idempotently, process source items, derive cited signals, refresh dos
      -H "Content-Type: application/json" \
      -d '{"url":"https://YOUR_DEPLOY/eve/v1/telegram","secret_token":"YOUR_SECRET","allowed_updates":["message","callback_query"]}'
    ```
-5. Open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
+5. Message the bot (creates the member) or open the web app → onboarding → verify with Telegram (widget or **Open @your_bot** deep link) → consent to updates.
 6. Inbound Telegram messages and web chat share the canonical conversation. Nightly digests use `send_telegram_message` when the member is linked and consented.
 
 If the widget renders **Bot domain invalid**, the deep-link button still signs members in. Fix the widget by re-running `/setdomain` for `gravy.sh`.
-
-## WhatsApp (optional fallback)
-
-Twilio sandbox: `TWILIO_*`, `TWILIO_WHATSAPP_FROM`, `WHATSAPP_TO`. Messaging webhook: `https://<deploy>/eve/v1/twilio/messages`. Used only if Telegram is not linked and Twilio is configured. Unset Twilio env → channel returns 503 (expected in local dev).
 
 ## Developer capture (not the member path)
 
@@ -201,7 +197,7 @@ Apply migrations against `DATABASE_URL_UNPOOLED` before serving member traffic. 
 | `pnpm db:generate` | Generate a migration after editing the Drizzle schema |
 | `pnpm db:migrate` | Apply committed migrations using the direct Neon URL |
 | `pnpm test:database` | Two-member Postgres isolation |
-| `pnpm test:auth` | Member-session / Clerk / Eve auth wiring + identity upserts |
+| `pnpm test:auth` | Member-session / Eve auth wiring + identity upserts |
 | `pnpm test:telegram-login` | Telegram Login Widget HMAC + session mint |
 | `pnpm test:career-profile` | Structured profile precedence + résumé ingest |
 | `pnpm test:conversation` | Canonical conversation bridge + idempotency |

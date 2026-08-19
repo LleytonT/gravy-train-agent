@@ -1,8 +1,12 @@
 # Secure Telegram linking
 
-Gravy Scout links Telegram with a short-lived, single-use deep-link token minted by a signed-in member. Telegram usernames are display metadata only.
+Gravy Scout links Telegram with a verified user ID. Texting the bot in a private chat creates or resolves the member. Short-lived deep-link tokens remain for web Login Widget fallback and reconnect. Telegram usernames are display metadata only.
 
-## Flow
+## First contact
+
+A private Telegram message with no prior `channel_identities` row calls `upsertMemberFromTelegramLogin`. Username-only linking is rejected.
+
+## Web reconnect / Login Widget fallback
 
 1. Signed-in member calls `POST /api/telegram/link` (or Eve tool `save_messaging_destination` with `action=link`).
 2. Identity module stores a SHA-256 hash of a random token and returns `https://t.me/<bot>?start=<token>`.

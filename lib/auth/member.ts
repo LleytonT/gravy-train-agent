@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 
 import {
   findMemberByExternalAuthId,
-  upsertMemberFromExternalAuth,
   type MemberRecord,
 } from "@/agent/lib/identity";
 import {
@@ -23,13 +22,8 @@ export class UnauthorizedError extends Error {
 export type ResolvedMemberSession = {
   member: MemberRecord;
   claims: MemberSessionClaims | null;
-  source: "telegram-session" | "clerk" | "local-dev-session";
+  source: "telegram-session" | "local-dev-session";
 };
-
-const clerkConfigured = Boolean(
-  process.env.CLERK_SECRET_KEY?.trim() &&
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim(),
-);
 
 async function memberFromSessionCookie(): Promise<ResolvedMemberSession | null> {
   const jar = await cookies();
@@ -52,57 +46,13 @@ async function memberFromSessionCookie(): Promise<ResolvedMemberSession | null> 
   };
 }
 
-async function memberFromClerk(): Promise<ResolvedMemberSession | null> {
-  if (!clerkConfigured) return null;
-
-  try {
-    const { auth, currentUser } = await import("@clerk/nextjs/server");
-    const { userId, isAuthenticated } = await auth();
-    if (!isAuthenticated || !userId) return null;
-
-    const user = await currentUser();
-    const email =
-      user?.primaryEmailAddress?.emailAddress ??
-      user?.emailAddresses[0]?.emailAddress ??
-      null;
-    const joinedName = [user?.firstName, user?.lastName]
-      .filter(Boolean)
-      .join(" ");
-    const displayName =
-      user?.fullName ?? (joinedName || null) ?? user?.username ?? null;
-
-    const member = await upsertMemberFromExternalAuth({
-      externalAuthId: userId,
-      email,
-      displayName,
-    });
-
-    return {
-      member,
-      claims: {
-        memberId: member.id,
-        externalAuthId: userId,
-        authenticator: "clerk",
-        displayName,
-      },
-      source: "clerk",
-    };
-  } catch (error) {
-    console.warn(
-      "[auth] Clerk resolve failed:",
-      error instanceof Error ? error.message : error,
-    );
-    return null;
-  }
-}
-
 /**
  * Resolve the signed-in principal to an internal member.
- * Preference order: Gravy Scout member session (Telegram Login) → Clerk.
- * Never trusts client-supplied member IDs.
+ * Web uses the Telegram-minted member-session cookie. Never trusts
+ * client-supplied member IDs.
  */
 export async function resolveAuthenticatedMember(): Promise<ResolvedMemberSession | null> {
-  return (await memberFromSessionCookie()) ?? (await memberFromClerk());
+  return memberFromSessionCookie();
 }
 
 export async function requireAuthenticatedMember(): Promise<MemberRecord> {

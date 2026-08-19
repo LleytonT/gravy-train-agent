@@ -80,12 +80,16 @@ async function main() {
     "telegram channel must consume deep-link login/link tokens on /start",
   );
   assert(
+    telegramChannel.includes("upsertMemberFromTelegramLogin") ||
+      telegramChannel.includes("ensureMemberFromTelegramUser"),
+    "telegram channel must provision members from a verified Telegram user ID",
+  );
+  assert(
     telegramChannel.includes("beginSurfaceTurn"),
     "telegram channel must route through conversation bridge",
   );
   assert(
-    telegramChannel.includes("Username-only linking is not supported") ||
-      telegramChannel.includes("usernames alone cannot link"),
+    telegramChannel.includes("Username-only linking is not supported"),
     "telegram channel must reject username-only linking",
   );
 
@@ -112,12 +116,12 @@ async function main() {
 
   try {
     const memberA = await upsertMemberFromExternalAuth({
-      externalAuthId: `clerk_tg_a_${runId}`,
+      externalAuthId: `telegram_tg_a_${runId}`,
       email: `tg-a-${runId}@example.invalid`,
       displayName: "Telegram A",
     });
     const memberB = await upsertMemberFromExternalAuth({
-      externalAuthId: `clerk_tg_b_${runId}`,
+      externalAuthId: `telegram_tg_b_${runId}`,
       email: `tg-b-${runId}@example.invalid`,
       displayName: "Telegram B",
     });

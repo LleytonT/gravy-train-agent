@@ -37,7 +37,7 @@ Telegram account linking or final visual redesign.
 ## Implementation notes
 
 - Module: `agent/lib/conversation.ts` — append/list/associate/begin/complete + context projection.
-- HTTP: `/api/conversations` and nested `messages`, `session`, `turns` routes (Clerk member only).
+- HTTP: `/api/conversations` and nested `messages`, `session`, `turns` routes (authenticated member only).
 - Web UI loads conversations/messages from the server; Eve streaming remains for live turns; `localStorage` thread event logs are removed.
 - One Eve session cursor per `(conversation_id, surface)` (`drizzle/0005_agent-session-surface.sql`).
 - Verify with `pnpm test:conversation`.

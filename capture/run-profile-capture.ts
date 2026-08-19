@@ -101,7 +101,7 @@ async function persistProfile(
       heading: "Identity",
       content: [
         `- Name: ${profile.name ?? ""}`,
-        `- WhatsApp: _(unchanged unless you tell me)_`,
+        `- Telegram: _(unchanged unless you tell me)_`,
         `- Location: ${profile.location ?? ""}`,
         `- Role today: ${roleToday}`,
       ].join("\n"),

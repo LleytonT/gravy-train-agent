@@ -19,7 +19,6 @@ export default defineEval({
     );
     t.succeeded();
     t.notCalledTool("send_telegram_message");
-    t.notCalledTool("send_whatsapp_message");
     t.notCalledTool("create_opportunity");
     t.notCalledTool("search_web");
     t.check(

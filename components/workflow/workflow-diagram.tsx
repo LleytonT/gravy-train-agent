@@ -33,7 +33,7 @@ const steps = [
   {
     id: "ping",
     title: "Ping or wait",
-    detail: "WhatsApp digest only when thresholds clear. Else stay quiet.",
+    detail: "Telegram digest only when thresholds clear. Else stay quiet.",
   },
 ] as const;
 
@@ -197,7 +197,7 @@ export function WorkflowDiagram() {
               Clear threshold
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Create opportunity and send WhatsApp digest.
+              Create opportunity and send Telegram digest.
             </p>
           </div>
           <div className="px-2 text-center">

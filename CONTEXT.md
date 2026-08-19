@@ -7,7 +7,7 @@ Use these terms consistently in product, code, prompts, tickets, and tests.
 - **Member** — a person with a Gravy Scout account. A member talks to Gravy Scout on Telegram. The web app is a public get-started onramp (open the bot) and, later, a non-agentic dashboard locked with Telegram Login; it is not a talk surface and does not show the conversation. A member may connect several sources.
 - **Career profile** — the structured, member-owned facts Gravy Scout uses to personalize work: experience, skills, constraints, ambitions, preferences, and explicit feedback.
 - **Preference** — a durable member choice that affects discovery or ranking. Preferences have provenance and may be explicit or inferred; inferred preferences must never silently override explicit ones.
-- **Channel identity** — an external identity that belongs to a member, such as a Telegram user ID. It is established by the channel itself. A username is display metadata, not identity.
+- **Channel identity** — an external identity that belongs to a member, such as a Telegram user ID. It is established by the channel itself. A username is display metadata, not identity. Telegram is the primary proof of membership; later channels add additional channel identities to the same member.
 - **Connection** — revocable authorization for Gravy Scout to read a member-controlled source. The first connection is the **inbound address**. A connection is not a channel identity.
 - **Inbound address** — a unique email address Gravy Scout gives a member on Telegram so job-board alerts can be subscribed or forwarded.
 

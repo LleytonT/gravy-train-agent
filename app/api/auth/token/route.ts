@@ -9,9 +9,7 @@ import {
 import { resolveAuthenticatedMember } from "@/lib/auth/member";
 
 /**
- * Returns a Bearer token for Eve. Prefers the existing member-session cookie;
- * when only Clerk is present, bridges a member-session JWT so Eve can auth
- * without depending on Clerk authorizedParties quirks.
+ * Returns a Bearer token for Eve from the Telegram member-session cookie.
  */
 export async function GET() {
   const jar = await cookies();
