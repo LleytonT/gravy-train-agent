@@ -73,7 +73,7 @@ export default defineTool({
         sent: false,
         skipped: true,
         reason:
-          "No active Telegram link. Ask the member to open the one-time deep link from the signed-in web app and tap Start.",
+          "No active Telegram channel identity. Ask the member to message the bot in a private chat.",
       };
     }
 

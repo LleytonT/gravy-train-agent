@@ -202,6 +202,7 @@ Apply migrations against `DATABASE_URL_UNPOOLED` before serving member traffic. 
 | `pnpm test:career-profile` | Structured profile precedence + résumé ingest |
 | `pnpm test:conversation` | Canonical conversation bridge + idempotency |
 | `pnpm test:telegram-link` | Link tokens, revocation, quiet hours |
+| `pnpm test:telegram-cold-start` | Unknown Telegram user `/start` and first DM create the member |
 | `pnpm test:inbound` | Job-alert parse, webhook verify, ingest dedupe |
 | `pnpm test:discovery` | Discovery claim/retry, evidence, constraints, noop digests |
 | `pnpm test:scoring` | Deterministic scoring + role personalization |

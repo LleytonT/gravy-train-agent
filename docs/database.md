@@ -57,6 +57,7 @@ pnpm test:auth        # identity upserts + Eve anonymous auth removed
 pnpm test:career-profile
 pnpm test:conversation # canonical conversation bridge + idempotency
 pnpm test:telegram-link # secure Telegram link tokens + revocation
+pnpm test:telegram-cold-start # unknown Telegram user IDs talk; website-gate cannot regress
 pnpm test:inbound     # job-alert parse fixtures, webhook verify, ingest dedupe
 pnpm test:discovery   # discovery claim/retry, evidence, constraints, digests
 pnpm test:scoring

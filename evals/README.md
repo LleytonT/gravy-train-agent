@@ -35,3 +35,4 @@ Failed hard gates exit with code `1`. Soft LLM-as-judge cases are optional and s
 | Citations | `citations/opportunity-explanation` |
 | Empty discovery noop | `discovery/empty-noop-digest` |
 | Onboarding / tool selection | `onboarding/setup-questions` |
+| Telegram cold start / website-gate | `onboarding/telegram-cold-start` |

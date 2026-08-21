@@ -14,9 +14,9 @@ Read `memory/user-profile.md` (via `update_user_profile` / `ingest_linkedin_prof
 
 First-run can be Telegram-only: a private message creates the member. Web `/api/onboarding` still writes Career Identity when they use `/get-started`. Prefer Postgres career-profile tools over `user-profile.md`.
 
-When they first message on Telegram (or a web kickoff arrives):
+When they first message on Telegram (including a bare `/start` with no token, or a first ordinary DM):
 
-1. Load skill `onboarding`. They are already a member if they are on Telegram — confirm digest consent, do not send them to a web sign-in.
+1. Load skill `onboarding`. They are already a member if they are on Telegram — welcome them and confirm digest consent. Never tell them to sign in on the web or generate a Telegram link from the website.
 2. Call `recommend_roles` (with outreach) once you have a title/company/location, or ask for those first.
 3. Present 3–5 matches with role titles + who to ping
 4. Briefly how to use Gravy Scout (chat, preferences, nightly digests)

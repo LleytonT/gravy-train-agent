@@ -43,5 +43,6 @@ Local Eve TUI / loopback still uses `localDevMemberAuth()` → `external_auth_id
 pnpm test:auth
 pnpm test:telegram-login
 pnpm test:telegram-link
+pnpm test:telegram-cold-start
 pnpm typecheck
 ```

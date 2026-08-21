@@ -75,22 +75,31 @@ async function main() {
     resolve("agent/channels/telegram.ts"),
     "utf8",
   );
-  assert(
-    telegramChannel.includes("consumeTelegramDeepLink"),
-    "telegram channel must consume deep-link login/link tokens on /start",
+  const telegramInbound = readFileSync(
+    resolve("agent/lib/telegram-inbound.ts"),
+    "utf8",
   );
   assert(
-    telegramChannel.includes("upsertMemberFromTelegramLogin") ||
-      telegramChannel.includes("ensureMemberFromTelegramUser"),
-    "telegram channel must provision members from a verified Telegram user ID",
+    telegramChannel.includes("handleTelegramInbound"),
+    "telegram channel must route inbound updates through the inbound module",
   );
   assert(
-    telegramChannel.includes("beginSurfaceTurn"),
-    "telegram channel must route through conversation bridge",
+    telegramInbound.includes("consumeTelegramDeepLink"),
+    "telegram inbound must consume deep-link login/link tokens on /start",
   );
   assert(
-    telegramChannel.includes("Username-only linking is not supported"),
-    "telegram channel must reject username-only linking",
+    telegramInbound.includes("upsertMemberFromTelegramLogin") ||
+      telegramInbound.includes("ensureMemberFromTelegramUser"),
+    "telegram inbound must provision members from a verified Telegram user ID",
+  );
+  assert(
+    telegramInbound.includes("beginSurfaceTurn"),
+    "telegram inbound must route through conversation bridge",
+  );
+  assert(
+    telegramChannel.includes("Username-only linking is not supported") ||
+      telegramInbound.includes("Username-only linking stays rejected"),
+    "telegram inbound must reject username-only linking",
   );
 
   // Quiet-hours pure helper (no DB).

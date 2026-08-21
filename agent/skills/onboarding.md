@@ -6,7 +6,7 @@ description: Use on first session, when messaging is not linked, or when the use
 
 Tone: concise, friendly, genuinely helpful. Short messages. No walls of text.
 
-Run this when `save_messaging_destination` read shows `onboardingComplete=false`, or the kickoff asks you to load this skill. If they are already chatting on Telegram, they are already a member — skip any “go to the web to link” step.
+Run this when `save_messaging_destination` read shows `onboardingComplete=false`, or the kickoff asks you to load this skill. If they are already chatting on Telegram, they are already a member — skip any “go to the web to link” or “sign in on the web” step. Never refuse a Telegram DM because they have not visited the website.
 
 ## 1. Warm hello (one breath)
 
